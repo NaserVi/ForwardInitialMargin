@@ -76,7 +76,7 @@ public class InitialMarginRegressionTest {
                                                                                  discountCurve,
                                                                                  forwardCurve, 0.0 /* Correlation */);
         // Another model with different volatility structure. 
-        LIBORModelMonteCarloSimulationInterface model2 = createLIBORMarketModel2(1000, 2, 0.2);
+        LIBORModelMonteCarloSimulationInterface model2 = createLIBORMarketModel2(5000, 2, 0.2);
      	
         // IM Portfolio Products. First test: Simple IR Swap
  		AbstractLIBORMonteCarloProduct[] products = new Swap[1];
@@ -149,10 +149,30 @@ public class InitialMarginRegressionTest {
 		 */
 		double a = 0.0 / 20.0, b = 0.0, c = 0.25, d = 0.3 / 20.0 / 2.0;
 		//LIBORVolatilityModel volatilityModel = new LIBORVolatilityModelFourParameterExponentialFormIntegrated(timeDiscretization, liborPeriodDiscretization, a, b, c, d, false);		
-		LIBORVolatilityModel volatilityModel = new LIBORVolatilityModelFourParameterExponentialForm(randomVariableFactory, timeDiscretization, liborPeriodDiscretization, a, b, c, d, false);
+/*		LIBORVolatilityModel volatilityModel = new LIBORVolatilityModelFourParameterExponentialForm(randomVariableFactory, timeDiscretization, liborPeriodDiscretization, a, b, c, d, false);
 		double[][] volatilityMatrix = new double[timeDiscretization.getNumberOfTimeSteps()][liborPeriodDiscretization.getNumberOfTimeSteps()];
 		for(int timeIndex=0; timeIndex<timeDiscretization.getNumberOfTimeSteps(); timeIndex++) Arrays.fill(volatilityMatrix[timeIndex], d);
 		volatilityModel = new LIBORVolatilityModelFromGivenMatrix(randomVariableFactory, timeDiscretization, liborPeriodDiscretization, volatilityMatrix);
+*/
+		double[][] volatility = new double[timeDiscretization.getNumberOfTimeSteps()][liborPeriodDiscretization.getNumberOfTimeSteps()];
+		for (int timeIndex = 0; timeIndex < volatility.length; timeIndex++) {
+			for (int liborIndex = 0; liborIndex < volatility[timeIndex].length; liborIndex++) {
+				// Create a very simple volatility model here
+				double time = timeDiscretization.getTime(timeIndex);
+				double maturity = liborPeriodDiscretization.getTime(liborIndex);
+				double timeToMaturity = maturity - time;
+
+				double instVolatility;
+				if(timeToMaturity <= 0)
+					instVolatility = 0;				// This forward rate is already fixed, no volatility
+				else
+					instVolatility = 0.3 + 0.2 * Math.exp(-0.25 * timeToMaturity);
+
+				// Store
+				volatility[timeIndex][liborIndex] = instVolatility;
+			}
+		}
+		LIBORVolatilityModel volatilityModel = new LIBORVolatilityModelFromGivenMatrix(timeDiscretization, liborPeriodDiscretization, volatility);
 
 		/*
 		 * Create a correlation model rho_{i,j} = exp(-a * abs(T_i-T_j))
@@ -218,7 +238,7 @@ public class InitialMarginRegressionTest {
 		 * Create the libor tenor structure and the initial values
 		 */
 		double liborPeriodLength	= 0.5;
-		double liborRateTimeHorzion	= 7.0;
+		double liborRateTimeHorzion	= 10.0;
 		TimeDiscretization liborPeriodDiscretization = new TimeDiscretization(0.0, (int) (liborRateTimeHorzion / liborPeriodLength), liborPeriodLength);		
 
 		/*

@@ -49,7 +49,7 @@ public class SIMMTestAAD {
 	final static DecimalFormat formatterIM  	= new DecimalFormat("0.00000000000");
 	
 	// LIBOR Market Model parameters
-	private final static int numberOfPaths		= 100;
+	private final static int numberOfPaths		= 500;
 	private final static int numberOfFactors	= 1;
 		
 	public static void main(String[] args) throws SolverException, CloneNotSupportedException, CalculationException {
@@ -156,10 +156,10 @@ public class SIMMTestAAD {
 		
 		// Choose if discount curve should be ignored in SIMM (incorrect if ignored; just to see how long it takes with and without ignoring it)
 		SIMM_StochasticWeightAdj.setIgnoreDiscountCurve(true); // Takes much longer if false. Different implementation / method required ?!
-		SIMM_ConstantWeightAdj.setIgnoreDiscountCurve(false);
+		SIMM_ConstantWeightAdj.setIgnoreDiscountCurve(true);
 		
-		double finalTime = 2.0; // The last time of the IM exposure to be calculated 
-		double timeStep  = 0.2;
+		double finalTime = 3.0; // The last time of the IM exposure to be calculated 
+		double timeStep  = 0.1;
 		
 		// Perform Calculations
 		// 1) Stochastic
@@ -226,11 +226,37 @@ public class SIMMTestAAD {
 		 */
 		double a = 0.0 / 20.0, b = 0.0, c = 0.25, d = 0.3 / 20.0 / 2.0;
 		//LIBORVolatilityModel volatilityModel = new LIBORVolatilityModelFourParameterExponentialFormIntegrated(timeDiscretization, liborPeriodDiscretization, a, b, c, d, false);		
-		LIBORVolatilityModel volatilityModel = new LIBORVolatilityModelFourParameterExponentialForm(randomVariableFactory, timeDiscretization, liborPeriodDiscretization, a, b, c, d, false);
+/*		LIBORVolatilityModel volatilityModel = new LIBORVolatilityModelFourParameterExponentialForm(randomVariableFactory, timeDiscretization, liborPeriodDiscretization, a, b, c, d, false);
 		double[][] volatilityMatrix = new double[timeDiscretization.getNumberOfTimeSteps()][liborPeriodDiscretization.getNumberOfTimeSteps()];
 		for(int timeIndex=0; timeIndex<timeDiscretization.getNumberOfTimeSteps(); timeIndex++) Arrays.fill(volatilityMatrix[timeIndex], d);
 		volatilityModel = new LIBORVolatilityModelFromGivenMatrix(randomVariableFactory, timeDiscretization, liborPeriodDiscretization, volatilityMatrix);
+*/
+		//___________________________________________________
+		
+		double[][] volatility = new double[timeDiscretization.getNumberOfTimeSteps()][liborPeriodDiscretization.getNumberOfTimeSteps()];
+		for (int timeIndex = 0; timeIndex < volatility.length; timeIndex++) {
+			for (int liborIndex = 0; liborIndex < volatility[timeIndex].length; liborIndex++) {
+				// Create a very simple volatility model here
+				double time = timeDiscretization.getTime(timeIndex);
+				double maturity = liborPeriodDiscretization.getTime(liborIndex);
+				double timeToMaturity = maturity - time;
 
+				double instVolatility;
+				if(timeToMaturity <= 0)
+					instVolatility = 0;				// This forward rate is already fixed, no volatility
+				else
+					instVolatility = 0.3 + 0.2 * Math.exp(-0.25 * timeToMaturity);
+
+				// Store
+				volatility[timeIndex][liborIndex] = instVolatility;
+			}
+		}
+		LIBORVolatilityModel volatilityModel = new LIBORVolatilityModelFromGivenMatrix(randomVariableFactory, timeDiscretization, liborPeriodDiscretization, volatility);
+
+		
+
+		//___________________________________________________
+		
 		/*
 		 * Create a correlation model rho_{i,j} = exp(-a * abs(T_i-T_j))
 		 */

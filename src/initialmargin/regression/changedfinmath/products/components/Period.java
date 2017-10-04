@@ -120,7 +120,7 @@ public class Period extends AbstractPeriod {
 		if(couponFlow) {
 			
 			// getCoupon has been changed
-			values = getCoupon(model);   // write here getCoupon(evaluationTime, model); if we want to get future value by going forward on the paths and not taking conditional expectation
+			values = getCoupon(evaluationTime, model);   // write here getCoupon(evaluationTime, model); if we want to get future value by going forward on the paths and not taking conditional expectation
 			
 			values = values.mult(notionalAtPeriodStart);
 			values = values.div(numeraire);
