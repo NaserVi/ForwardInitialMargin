@@ -1,15 +1,13 @@
 package initialmargin.regression;
 import java.text.DecimalFormat;
-import java.util.Arrays;
-import java.util.Calendar;
-import java.util.Date;
+import java.time.LocalDate;
+//import org.joda.time.DateTimeConstants;
+//import org.joda.time.LocalDate;
 import java.util.HashMap;
 import java.util.Map;
 
-
 import initialmargin.regression.changedfinmath.products.AbstractLIBORMonteCarloProduct;
 import initialmargin.regression.changedfinmath.products.Portfolio;
-import initialmargin.regression.changedfinmath.products.SimpleSwap;
 import initialmargin.regression.changedfinmath.products.Swap;
 import initialmargin.regression.changedfinmath.products.SwapLeg;
 import initialmargin.regression.changedfinmath.products.Swaption;
@@ -30,13 +28,11 @@ import initialmargin.simm.changedfinmath.LIBORMarketModel;
 import net.finmath.exception.CalculationException;
 import net.finmath.marketdata.model.AnalyticModel;
 import net.finmath.marketdata.model.AnalyticModelInterface;
-import net.finmath.marketdata.model.curves.Curve;
 import net.finmath.marketdata.model.curves.CurveInterface;
 import net.finmath.marketdata.model.curves.DiscountCurve;
 import net.finmath.marketdata.model.curves.DiscountCurveFromForwardCurve;
 import net.finmath.marketdata.model.curves.DiscountCurveInterface;
 import net.finmath.marketdata.model.curves.ForwardCurve;
-import net.finmath.marketdata.model.curves.ForwardCurveInterface;
 import net.finmath.montecarlo.AbstractRandomVariableFactory;
 import net.finmath.montecarlo.BrownianMotionInterface;
 import net.finmath.montecarlo.RandomVariableFactory;
@@ -46,20 +42,18 @@ import net.finmath.montecarlo.interestrate.LIBORModelMonteCarloSimulationInterfa
 import net.finmath.montecarlo.interestrate.modelplugins.LIBORCorrelationModelExponentialDecay;
 import net.finmath.montecarlo.interestrate.modelplugins.LIBORCovarianceModelFromVolatilityAndCorrelation;
 import net.finmath.montecarlo.interestrate.modelplugins.LIBORVolatilityModel;
-import net.finmath.montecarlo.interestrate.modelplugins.LIBORVolatilityModelFourParameterExponentialForm;
 import net.finmath.montecarlo.interestrate.modelplugins.LIBORVolatilityModelFromGivenMatrix;
 import net.finmath.montecarlo.process.ProcessEulerScheme;
 import net.finmath.time.ScheduleGenerator;
 import net.finmath.time.ScheduleInterface;
 import net.finmath.time.TimeDiscretization;
 import net.finmath.time.businessdaycalendar.BusinessdayCalendarExcludingTARGETHolidays;
-import net.finmath.time.businessdaycalendar.BusinessdayCalendarInterface;
 
 public class InitialMarginRegressionTest {
 	final static DecimalFormat formatterTime	= new DecimalFormat("0.000");
 	final static DecimalFormat formatterIM  	= new DecimalFormat("0.00000000000");
 	
-	private final static int numberOfPaths		= 1000;
+	private final static int numberOfPaths		= 5000;
 	private final static int numberOfFactors	= 1;
  
      public static void main(String[] args) throws CalculationException{
@@ -69,21 +63,21 @@ public class InitialMarginRegressionTest {
                                                                                                  new double[] {0.99 , 0.98, 0.97, 0.9, 0.7} /*discountFactors*/);
          ForwardCurve  forwardCurve = ForwardCurve.createForwardCurveFromForwards("forwardCurve",
                                                                                        new double[] {0.5 , 1.0, 2.0, 5.0, 30.0}	/* fixings of the forward */,
-                                                                                       new double[] {0.05, 0.05, 0.05, 0.05, 0.05},
+                                                                                       new double[] {0.04, 0.04, 0.04, 0.04, 0.04},
                                                                                        0.5/* tenor / period length */);
 
          LIBORModelMonteCarloSimulationInterface model = createLIBORMarketModel(new RandomVariableFactory(),numberOfPaths, numberOfFactors, 
                                                                                  discountCurve,
                                                                                  forwardCurve, 0.0 /* Correlation */);
         // Another model with different volatility structure. 
-        LIBORModelMonteCarloSimulationInterface model2 = createLIBORMarketModel2(5000, 2, 0.2);
+        LIBORModelMonteCarloSimulationInterface model2 = createLIBORMarketModel2(1000, 2, 0.2);
      	
         // IM Portfolio Products. First test: Simple IR Swap
  		AbstractLIBORMonteCarloProduct[] products = new Swap[1];
- 		products[0] = createSwap(0.0,5);
+ 		products = createSwaps(new String[] {"5Y"});
    		
  		double finalTime = 6.0;
- 		double timeStep  = 1.0/20.0;
+ 		double timeStep  = 1.0/40.0;
    	    // Create Portfolio of single 10y swap
   		Portfolio portfolio = new Portfolio(products, new double[]{1});
   		portfolio.setInitialLifeTime(5.0);
@@ -107,7 +101,7 @@ public class InitialMarginRegressionTest {
    		
    		Portfolio portfolio2 = new Portfolio(swaption, new double[] {1});
    		portfolio2.setInitialLifeTime(6.0);
-   		InitialMarginForwardRegression IMRegression = new InitialMarginForwardRegression(portfolio2, model, 2 /*polynomialOrder*/,"LSQREGRESSION");
+   		InitialMarginForwardRegression IMRegression = new InitialMarginForwardRegression(portfolio2, model2, 2 /*polynomialOrder*/,"LSQREGRESSION");
    		
    		System.out.println("Initial Margin of swaption by Regression ");
    		System.out.println("Time " + "\t" + "Initial Margin");
@@ -115,7 +109,7 @@ public class InitialMarginRegressionTest {
    		   System.out.println(formatterTime.format(i*timeStep) + "\t " +
    		                      formatterIM.format(IMRegression.getInitialMargin(i*timeStep)));
    		}
-   		
+  		
    	}
      
      
@@ -319,67 +313,50 @@ public class InitialMarginRegressionTest {
 	
 	
 	
-	
-	// Product of which we calculate IM
-	public static AbstractLIBORMonteCarloProduct createSwap(double evaluationTime, int maturityInYears){
-	   
-	    // Floating Leg
-	    	// Reference Date: today
-	    	Calendar calRef = Calendar.getInstance();
-	    	calRef.set(Calendar.YEAR, 2017);
-	    	calRef.set(Calendar.MONTH, Calendar.JANUARY);
-	    	calRef.set(Calendar.DAY_OF_MONTH, 7);
-	    	Date referenceDate = calRef.getTime();
-	    	//Start Date
-	    	Calendar calStart = calRef;
-	    	int wholeYears = (int)Math.round(evaluationTime)<=evaluationTime ? (int)Math.round(evaluationTime):(int)Math.round(evaluationTime)-1;
-	    	int wholeMonths= (int)Math.round((evaluationTime-wholeYears)*12.0)<=(evaluationTime-wholeYears)*12.0 ? (int)Math.round((evaluationTime-wholeYears)*12.0):(int)Math.round((evaluationTime-wholeYears)*12.0)-1;
-	    	int wholeDays  = (int)((evaluationTime-wholeYears)*12.0-wholeMonths)*30;
-	    	calStart.add(Calendar.YEAR, wholeYears);
-	    	calStart.add(Calendar.MONTH, wholeMonths);
-	    	calStart.add(Calendar.DAY_OF_MONTH, wholeDays);
-			Date startDate = calStart.getTime();
-			
-	    	//Maturity Date
-	    	Calendar calMat = calStart;
-	    	calMat.add(Calendar.YEAR, maturityInYears);
-	    	Date maturityDate = calMat.getTime();
-		
-		
-		String		frequency = "semiannual";
-		String		daycountConvention = "30/360";
+	 public static AbstractLIBORMonteCarloProduct[] createSwaps(String[] maturities){
+		    AbstractLIBORMonteCarloProduct[] swaps = new AbstractLIBORMonteCarloProduct[maturities.length];
+		    // 1) Create Portfolio of swaps -------------------------------------------------------------------------------
+		    for(int swapIndex = 0; swapIndex < maturities.length; swapIndex++){
+		    // Floating Leg
+			LocalDate	referenceDate = LocalDate.of(2017, 8, 12);
+			int			spotOffsetDays = 0;
+			String		forwardStartPeriod = "0D";
+			String		maturity = maturities[swapIndex];
+			String		frequency = "semiannual";
+			String		daycountConvention = "30/360";
 
-		/*
-		 * Create Monte-Carlo leg
-		 */
-		AbstractNotional notional = new Notional(100.0);//*(1+Math.max(Math.random(), -0.7)));
-		AbstractIndex index = new LIBORIndex(0.0, 0.5);
-		double spread = 0.0;
-		
-		ScheduleInterface schedule = ScheduleGenerator.createScheduleFromConventions(referenceDate, startDate, maturityDate, frequency, daycountConvention, "first", "following", new BusinessdayCalendarExcludingTARGETHolidays(), 0, 0);
-		//ScheduleInterface schedule = ScheduleGenerator.createScheduleFromConventions(referenceDate, spotOffsetDays, forwardStartPeriod, maturity, frequency, daycountConvention, "first", "following", new BusinessdayCalendarExcludingTARGETHolidays(), -2, 0);
-		SwapLeg leg = new SwapLeg(schedule, notional, index, spread, false /* isNotionalExchanged */);
-	    
-		// Fixed Leg
-		
-		
-		String		frequencyF = "semiannual";
-		String		daycountConventionF = "30/360";
+			/*
+			 * Create Monte-Carlo leg
+			 */
+			AbstractNotional notional = new Notional(100.0);//*(1+Math.max(Math.random(), -0.7)));
+			AbstractIndex index = new LIBORIndex(0.0, 0.5);
+			double spread = 0.0;
+			ScheduleInterface schedule = ScheduleGenerator.createScheduleFromConventions(referenceDate, spotOffsetDays, forwardStartPeriod, maturity, frequency, daycountConvention, "first", "following", new BusinessdayCalendarExcludingTARGETHolidays(), 0, 0);
+			SwapLeg leg = new SwapLeg(schedule, notional, index, spread, false /* isNotionalExchanged */);
+		    
+			// Fixed Leg
+			LocalDate	referenceDateF = LocalDate.of(2017, 8, 12);
+			int			spotOffsetDaysF = 0;
+			String		forwardStartPeriodF = "0D";
+			String		maturityF = maturities[swapIndex];
+			String		frequencyF = "semiannual";
+			String		daycountConventionF = "30/360";
 
-		/*
-		 * Create Monte-Carlo leg
-		 */
-		AbstractNotional notionalF = notional;
-		AbstractIndex indexF = null;
-		double spreadF = 0.00;
-		ScheduleInterface scheduleF = ScheduleGenerator.createScheduleFromConventions(referenceDate, startDate, maturityDate, frequencyF, daycountConventionF, "first", "following", new BusinessdayCalendarExcludingTARGETHolidays(), 0, 0);
-		//ScheduleInterface scheduleF = ScheduleGenerator.createScheduleFromConventions(referenceDateF, spotOffsetDaysF, forwardStartPeriodF, maturityF, frequencyF, daycountConventionF, "first", "following", new BusinessdayCalendarExcludingTARGETHolidays(), -2, 0);
-		SwapLeg legF = new SwapLeg(scheduleF, notionalF, indexF, spreadF, false /* isNotionalExchanged */);
+			/*
+			 * Create Monte-Carlo leg
+			 */
+			AbstractNotional notionalF = notional;
+			AbstractIndex indexF = null;
+			double spreadF = 0.00;
+			ScheduleInterface scheduleF = ScheduleGenerator.createScheduleFromConventions(referenceDateF, spotOffsetDaysF, forwardStartPeriodF, maturityF, frequencyF, daycountConventionF, "first", "following", new BusinessdayCalendarExcludingTARGETHolidays(), 0, 0);
+			SwapLeg legF = new SwapLeg(scheduleF, notionalF, indexF, spreadF, false /* isNotionalExchanged */);
 
-		// Swap
-		return new Swap(leg,legF);
-
-	    }
+			// Swap
+			AbstractLIBORMonteCarloProduct swap = new Swap(leg,legF);
+			swaps[swapIndex]=swap;
+		    }
+		    return swaps;
+		    }
    	
     	 
     	 
