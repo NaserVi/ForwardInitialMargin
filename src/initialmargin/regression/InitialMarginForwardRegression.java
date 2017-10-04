@@ -94,13 +94,13 @@ public class InitialMarginForwardRegression {
     	  RandomVariableInterface initialValue = portfolio.getValue(time, model);
     	  initialValue = initialValue.sub(cashFlows);
     	  
-    	  if(time>0 && time < lastFixingTime) { 
+    	  if(time>0 && time < lastFixingTime && !(portfolio.getProducts()[0] instanceof Swap)) { // For swap we go forward along paths
     		  ConditionalExpectationEstimatorInterface condExpOperatorInitial = getConditionalExpectationEstimatorLibor(time, model);
     		  initialValue = initialValue.getConditionalExpectation(condExpOperatorInitial);
     	  }
     
     	  RandomVariableInterface finalValue = portfolio.getValue(time+MPOR, model);
-    	  if(time+MPOR<lastFixingTime) {
+    	  if(time+MPOR<lastFixingTime && !(portfolio.getProducts()[0] instanceof Swap)) {
     		  ConditionalExpectationEstimatorInterface condExpOperatorFinal = getConditionalExpectationEstimatorLibor(time+MPOR, model);
     		  finalValue = finalValue.getConditionalExpectation(condExpOperatorFinal);
     	  }
@@ -170,7 +170,7 @@ public class InitialMarginForwardRegression {
   		// If Libor for last CF is not yet fixed
   		RandomVariableInterface NPV = portfolio.getValue(forwardVaRTime, model); 
   		double lastFixingTime = model.getLiborPeriodDiscretization().getTime(model.getLiborPeriodDiscretization().getTimeIndex(portfolio.getInitialLifeTime())-1);
-    	if(forwardVaRTime < lastFixingTime){
+    	if(forwardVaRTime < lastFixingTime && !(portfolio.getProducts()[0] instanceof Swap)){ 
   		   // to get NPV at time t
     		ConditionalExpectationEstimatorInterface condExpEstimatorLibor = getConditionalExpectationEstimatorLibor(forwardVaRTime, model);
   	       // State Variables: NPV of portfolio
