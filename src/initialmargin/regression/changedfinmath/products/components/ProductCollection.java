@@ -196,7 +196,6 @@ public class ProductCollection extends AbstractProductComponent {
 	@Override
 	public RandomVariableInterface getValue(double evaluationTime, double fixingDate,
 			LIBORModelMonteCarloSimulationInterface model) throws CalculationException {
-		// TODO Auto-generated method stub
-		return null;
+		return getValue(evaluationTime,model);
 	}
 }

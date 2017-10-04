@@ -53,7 +53,6 @@ public class LIBORIndex extends AbstractIndex {
 
 		if(model.getModel().getForwardRateCurve().getName() != null && getName() != null && !model.getModel().getForwardRateCurve().getName().contains(getName())) throw new IllegalArgumentException("No curve for index " + getName() + " found in model.");
 		RandomVariableInterface forwardRate = model.getLIBOR(evaluationTime, evaluationTime+periodStartOffset, evaluationTime+periodStartOffset+periodLength);
-       //0.05349159667186987
 		return forwardRate;
 	}
 	
@@ -63,8 +62,7 @@ public class LIBORIndex extends AbstractIndex {
 
 		if(model.getModel().getForwardRateCurve().getName() != null && getName() != null && !model.getModel().getForwardRateCurve().getName().contains(getName())) throw new IllegalArgumentException("No curve for index " + getName() + " found in model.");
 		RandomVariableInterface forwardRate = model.getLIBOR(Math.min(evaluationTime,fixingTime), fixingTime+periodStartOffset, fixingTime+periodStartOffset+periodLength);
-//0.054631683660169905     0.027385548994700137, 0.04135428764593474, 0.05645265762282747
-		return forwardRate; // 0.0272624742247487, 0.04292296554944075, 0.05854137226845246
+		return forwardRate; 
 	}
 
 	/**

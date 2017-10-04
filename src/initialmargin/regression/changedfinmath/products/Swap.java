@@ -70,7 +70,7 @@ public class Swap extends AbstractLIBORMonteCarloProduct {
 
 	@Override
 	public RandomVariableInterface getValue(double evaluationTime, LIBORModelMonteCarloSimulationInterface model) throws CalculationException {
-		RandomVariableInterface value = legReceiver.getValue(evaluationTime, model); //1.371880575520768, 2.0709256739002413, 2.814116648693982
+		RandomVariableInterface value = legReceiver.getValue(evaluationTime, model); 
 		if(legPayer != null) value = value.sub(legPayer.getValue(evaluationTime, model));
 		
 		return value;

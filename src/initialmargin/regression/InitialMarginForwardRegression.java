@@ -15,6 +15,13 @@ import net.finmath.stochastic.RandomVariableInterface;
 import net.finmath.time.TimeDiscretization;
 import net.finmath.time.TimeDiscretizationInterface;
 
+/**
+ * This class implements the Dynamic Initial Margin by Regression as described in 
+ * https://papers.ssrn.com/sol3/papers.cfm?abstract_id=2911167
+ * 
+ * @author Mario Viehmann
+ *
+ */
 public class InitialMarginForwardRegression {
 	  private final double confidenceLevel = 0.99;
 	  private final double MPOR = 0.03;
@@ -42,7 +49,7 @@ public class InitialMarginForwardRegression {
      	 RandomVariableInterface variance;
      	 double initialMargin = 0;
      	 switch (method){	   
- 		   case DELTAGAMMA:
+ 		   case DELTAGAMMA: // @ToDo delta and gamma as coefficients of the regression function
  			   break;
  		   
  		   case LSQREGRESSION:
@@ -71,7 +78,7 @@ public class InitialMarginForwardRegression {
      	 }
      	 return initialMargin;
       }
-      
+     
       
       /**Calculates the clean portfolio value change, i.e. V(t+MPOR)-V(t)+CF({t,t+MPOR})
        * 
@@ -87,7 +94,7 @@ public class InitialMarginForwardRegression {
     	  RandomVariableInterface initialValue = portfolio.getValue(time, model);
     	  initialValue = initialValue.sub(cashFlows);
     	  
-    	  if(time>0 && time < lastFixingTime) {
+    	  if(time>0 && time < lastFixingTime) { 
     		  ConditionalExpectationEstimatorInterface condExpOperatorInitial = getConditionalExpectationEstimatorLibor(time, model);
     		  initialValue = initialValue.getConditionalExpectation(condExpOperatorInitial);
     	  }
