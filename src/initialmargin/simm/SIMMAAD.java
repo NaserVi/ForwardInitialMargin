@@ -8,6 +8,7 @@ import org.apache.commons.math3.linear.MatrixUtils;
 import org.apache.commons.math3.linear.RealMatrix;
 import org.apache.commons.math3.linear.SingularValueDecomposition;
 
+import initialmargin.isdasimm.SIMMSchemeMain;
 import net.finmath.exception.CalculationException;
 import net.finmath.montecarlo.RandomVariable;
 import net.finmath.montecarlo.automaticdifferentiation.RandomVariableDifferentiableInterface;
@@ -158,6 +159,14 @@ public class SIMMAAD {
 		    }
 		}
 		return initialMargin;
+	}
+	
+	
+	private RandomVariableInterface getInitialMarginPKL(double evaluationTime)
+	{
+		SIMMSchemeMain.ParameterCollection dummyParameterSet = new SIMMSchemeMain.ParameterCollection();
+		SIMMSchemeMain isdaSimmScheme = new SIMMSchemeMain(this.portfolioProducts,this.model,dummyParameterSet,"EUR");
+		return isdaSimmScheme.getValue(evaluationTime);
 	}
 	
 	/**Calculate forward initial margin at specific time point
