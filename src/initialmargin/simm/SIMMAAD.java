@@ -2,24 +2,31 @@ package initialmargin.simm;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.Map;
 
 import org.apache.commons.math3.linear.MatrixUtils;
 import org.apache.commons.math3.linear.RealMatrix;
 import org.apache.commons.math3.linear.SingularValueDecomposition;
 
-import initialmargin.isdasimm.SIMMSchemeMain;
 import net.finmath.exception.CalculationException;
+//import net.finmath.marketdata.model.curves.DiscountCurve;
+import net.finmath.analytic.model.curves.DiscountCurve;
+
 import net.finmath.montecarlo.RandomVariable;
 import net.finmath.montecarlo.automaticdifferentiation.RandomVariableDifferentiableInterface;
-import net.finmath.montecarlo.automaticdifferentiation.backward.RandomVariableDifferentiableAAD;
 import net.finmath.montecarlo.conditionalexpectation.MonteCarloConditionalExpectationRegression;
-import net.finmath.montecarlo.interestrate.LIBORModelMonteCarloSimulationInterface;
-import net.finmath.montecarlo.interestrate.products.AbstractLIBORMonteCarloProduct;
+//import net.finmath.montecarlo.interestrate.LIBORModelMonteCarloSimulation;
+//import net.finmath.montecarlo.interestrate.LIBORModelMonteCarloSimulationInterface;
+import initialmargin.simm.changedfinmath.*;
+import initialmargin.simm.changedfinmath.products.*;
+
+//import net.finmath.montecarlo.interestrate.products.AbstractLIBORMonteCarloProduct;
 //import net.finmath.montecarlo.interestrate.products.Portfolio;
 import net.finmath.optimizer.SolverException;
 import net.finmath.stochastic.ConditionalExpectationEstimatorInterface;
 import net.finmath.stochastic.RandomVariableInterface;
+import net.finmath.time.TimeDiscretization;
 
 public class SIMMAAD {
 	
@@ -31,7 +38,7 @@ public class SIMMAAD {
 	private ConditionalExpectationEstimatorInterface conditionalExpectationOperator;
 	private boolean isUseTimeGridAdjustment=true; // can be discarded later.. just to check how time grid adjustment affects IM
 	private boolean isIgnoreDiscountCurve=false;  // can be discarded later.. just to check how discount curve influences IM
-	
+	private double[] discountCurvePillars = {0.5 , 1.0, 2.0, 5.0, 30.0};// shouldn't the discount curve know its pillars ?
 	// SIMM parameters
 	private final double deltaThreshold = 250000000;
 	//risk factor in days
@@ -162,12 +169,12 @@ public class SIMMAAD {
 	}
 	
 	
-	private RandomVariableInterface getInitialMarginPKL(double evaluationTime)
-	{
-		SIMMSchemeMain.ParameterCollection dummyParameterSet = new SIMMSchemeMain.ParameterCollection();
-		SIMMSchemeMain isdaSimmScheme = new SIMMSchemeMain(this.portfolioProducts,this.model,dummyParameterSet,"EUR");
-		return isdaSimmScheme.getValue(evaluationTime);
-	}
+//	private RandomVariableInterface getInitialMarginPKL(double evaluationTime)
+//	{
+//		SIMMSchemeMain.ParameterCollection dummyParameterSet = new SIMMSchemeMain.ParameterCollection();
+//		SIMMSchemeMain isdaSimmScheme = new SIMMSchemeMain(this.portfolioProducts,this.model,dummyParameterSet,"EUR");
+//		return isdaSimmScheme.getValue(evaluationTime);
+//	}
 	
 	/**Calculate forward initial margin at specific time point
 	 * 
@@ -208,7 +215,7 @@ public class SIMMAAD {
 			    }
 		    }
 	    } else{ //For the case of a single curve model
-		    RandomVariableInterface[] discountCurveSensitivity = getDiscountCurveSensitivities(evaluationTime);//fixed sensitivity inputs: new double[]{0, 0, 0, 0, 0, 0, 0, -5000000, -10000000, -5000000, 0, 0}
+		    RandomVariableInterface[] discountCurveSensitivity = getForwardCurveSensitivities(evaluationTime);//fixed sensitivity inputs: new double[]{0, 0, 0, 0, 0, 0, 0, -5000000, -10000000, -5000000, 0, 0}
 		    RandomVariableInterface concentrationThreshold = new RandomVariable(0.0); 
 		    for(int riskFactor = 0; riskFactor < discountCurveSensitivity.length; riskFactor++){
 			    concentrationThreshold = concentrationThreshold.add(discountCurveSensitivity[riskFactor]);
@@ -513,68 +520,68 @@ public class SIMMAAD {
 	 * @throws CalculationException 
 	 */
 	public RandomVariableInterface[] getDiscountCurveSensitivities(double evaluationTime) throws CalculationException{
-		// Calculate dV/dN*dN/dP*dP/dS
-		int numberOfBonds = getNumberOfRemainingLibors(evaluationTime);
-		int lastNumeraireIndex = model.getLiborPeriodIndex(evaluationTime) < 0 ? -model.getLiborPeriodIndex(evaluationTime)-2 : model.getLiborPeriodIndex(evaluationTime);
-		int index = lastNumeraireIndex;
-		// Get dV/dN for all numeraires
-		RandomVariableInterface[] dVdN = new RandomVariableInterface[model.getNumberOfLibors()-lastNumeraireIndex+1];
-		RandomVariableInterface[] numeraires = new RandomVariableInterface[dVdN.length];
-		RandomVariableDifferentiableInterface productValue = (RandomVariableDifferentiableInterface) getProduct().getValue(evaluationTime, getModel());
-		Map<Long, RandomVariableInterface> gradientAtEval = productValue.getGradient();
-		for(int i=0;i<dVdN.length;i++) {
-			double timeAtNumeraire = model.getLiborPeriodDiscretization().getTime(index);
-			numeraires[i]=model.getNumeraire(timeAtNumeraire);
-			dVdN[i]= getDerivative(gradientAtEval, model.getNumeraire(timeAtNumeraire)).getConditionalExpectation(conditionalExpectationOperator);
-		    index++;
+		// We calculate dV/dP * dP/dS. dV/dP is at t=0 since the curve starts at 0 !?!
+		if(conditionalExpectationOperator==null) setConditionalExpectationOperator(evaluationTime);
+		final double shift = 0.0001;
+		
+		// Remove first entry from pillars if it is at time 0.
+		int index = discountCurvePillars[0]==0 ? 1 : 0;
+		double[] pillars = new double[discountCurvePillars.length-index];
+		for(int i=0;i<pillars.length;i++) pillars[i]=discountCurvePillars[i+index];
+		
+		RandomVariableInterface  value = currentProduct.getValue(evaluationTime, model); //.mult(model.getNumeraire(evaluationTime));
+		Map<Long, RandomVariableInterface> gradientOfProduct = ((RandomVariableDifferentiableInterface) value).getGradient();
+		int numberOfP = getNumberOfRemainingLibors(evaluationTime);
+		
+	
+		int lastPillarIndex = evaluationTime>pillars[0] ? new TimeDiscretization(pillars).getTimeIndexNearestLessOrEqual(evaluationTime) : 0;
+		
+        double liborPeriodLength = model.getLiborPeriodDiscretization().getTimeStep(0);
+		RandomVariableInterface[] dVdP = new RandomVariableInterface[pillars.length-lastPillarIndex];//numberOfP];
+        DiscountCurve discountCurve = (DiscountCurve) model.getModel().getDiscountCurve();
+        // Define new pillars. Another option is to calculate dV/dP wrt original Pillars, and do interpolation: dV/dP*dP/d\tilde{P}
+//		TimeDiscretization curveTimes = new TimeDiscretization(evaluationTime, numberOfP, liborPeriodLength);
+        TimeDiscretization curveTimes = new TimeDiscretization(pillars);
+		RandomVariableInterface[] discountFactors = new RandomVariableInterface[pillars.length];//numberOfP+1];
+		// get discount factors
+		for(int i=0;i<pillars.length;i++) discountFactors[i]=discountCurve.getDiscountFactor(pillars[i]);//curveTimes.getTime(i));
+		// dV(t)/dP(T_i;0)
+		for(int i=lastPillarIndex;i<pillars.length;i++){
+//			discountFactors[i]+=shift;
+//			DiscountCurve newDiscountCurve = DiscountCurve.createDiscountCurveFromDiscountFactors("discountCurve", pillars/*curveTimes.getAsDoubleArray()*/, discountFactors); 
+//		    // get clone of LMM with shifted curve. 
+//			Map<String,Object> dataModified = new HashMap<String,Object>();
+//		    dataModified.put("discountCurve", newDiscountCurve);
+//		    LIBORModelMonteCarloSimulationInterface newModel = (LIBORModelMonteCarloSimulation) model.getCloneWithModifiedData(dataModified);
+//		    dVdP[i-lastPillarIndex] = currentProduct.getValue(evaluationTime, newModel).mult(newModel.getNumeraire(evaluationTime)).getConditionalExpectation(conditionalExpectationOperator);
+//            dVdP[i-lastPillarIndex]=dVdP[i-lastPillarIndex].sub(value).div(shift).mult(discountCurve.getDiscountFactor(evaluationTime));
+//		    discountFactors[i]-=shift;
+			dVdP[i-lastPillarIndex] = getDerivative(gradientOfProduct, discountFactors[i]).getConditionalExpectation(conditionalExpectationOperator);
 		}
-		// Get dP/dN with AAD 
-		RandomVariableInterface[][] dPdN = new RandomVariableInterface[numberOfBonds][dVdN.length];
-		RandomVariableInterface numeraireAtEval = model.getNumeraire(evaluationTime);
-    	double numeraireTime = evaluationTime;
-		for(int bondIndex=0;bondIndex<numberOfBonds;bondIndex++){
-			numeraireTime += model.getLiborPeriodDiscretization().getTimeStep(lastNumeraireIndex+bondIndex);
-			RandomVariableDifferentiableInterface bond = (RandomVariableDifferentiableInterface) numeraireAtEval.div(model.getNumeraire(numeraireTime));
-			Map<Long, RandomVariableInterface> gradient = bond.getGradient();
-			for(int numeraireIndex=0;numeraireIndex<dPdN[0].length;numeraireIndex++){
-				dPdN[bondIndex][numeraireIndex]= getDerivative(gradient, numeraires[numeraireIndex]).getConditionalExpectation(conditionalExpectationOperator);
+		// Get dP(T_i;0)/dP(t+i\delta T;0): Linear interpolation on log value per time
+		RandomVariableInterface[][] dPdP = new RandomVariableInterface[numberOfP][pillars.length-lastPillarIndex];
+		for(int i=0;i<dPdP.length;i++){
+			double discountTime = evaluationTime + (i+1) * liborPeriodLength;
+			if(discountTime < pillars[0]) {
+				double term = Math.pow(discountTime/pillars[0],2.0);
+				dPdP[i][0]=discountFactors[0].invert().mult(term).mult(discountFactors[0].log().mult(term).exp());
+				continue;
 			}
+			// Get upper and lower index
+			int lowerIndex = curveTimes.getTimeIndexNearestLessOrEqual(discountTime); // as 0 is included in time discretization but nut in pillars
+			lowerIndex = lowerIndex <0 ? 0 : lowerIndex;
+			int upperIndex = lowerIndex+1;
+			double delta = (discountTime-pillars[lowerIndex])/curveTimes.getTimeStep(lowerIndex);
+			RandomVariableInterface summand1 = discountFactors[lowerIndex].log().mult((1-delta)/pillars[lowerIndex]);
+			RandomVariableInterface summand2 = discountFactors[upperIndex].log().mult(delta/pillars[upperIndex]);
+			RandomVariableInterface factor   = summand1.add(summand2).mult(discountTime).exp();
+			//Math.exp(((1-delta)/pillars[lowerIndex]*Math.log(discountFactors[lowerIndex])+delta/pillars[upperIndex]*Math.log(discountFactors[upperIndex]))*discountTime);
+			dPdP[i][lowerIndex-lastPillarIndex]=factor.div(discountFactors[lowerIndex]).mult((1-delta)/pillars[lowerIndex]*discountTime);
+			dPdP[i][upperIndex-lastPillarIndex]=factor.div(discountFactors[upperIndex]).mult(delta/pillars[upperIndex]*discountTime);
 		}
-/*		// Get dP/dN analytically 
-		for(int bondIndex=0;bondIndex<numberOfBonds; bondIndex++){
-		if(onLiborPeriodDiscretization(evaluationTime)){
-			dPdN[bondIndex][0] = numeraires[bondIndex+1].invert().getConditionalExpectation(conditionalExpectationOperator);
-			dPdN[bondIndex][bondIndex+1]= numeraires[0].mult(-1.0).div(numeraires[bondIndex+1].squared()).getConditionalExpectation(conditionalExpectationOperator);
-		} else {
-			int timeIndex = model.getLiborPeriodIndex(evaluationTime); // should be <0 
-			// Interpolation of Numeraire: log linear interpolation.
-			int upperIndex = -timeIndex-1;
-			int lowerIndex = upperIndex-1;
-			double alpha = (evaluationTime-model.getLiborPeriod(lowerIndex)) / (model.getLiborPeriod(upperIndex) - model.getLiborPeriod(lowerIndex));
-			if(bondIndex==0){
-				double endTime = evaluationTime+model.getLiborPeriodDiscretization().getTimeStep(0);
-				double beta = (endTime-model.getLiborPeriod(lowerIndex+1)) / (model.getLiborPeriod(upperIndex+1) - model.getLiborPeriod(lowerIndex+1));
-				RandomVariableInterface bond = numeraireAtEval.div(model.getNumeraire(endTime));
-			    dPdN[0][0]=numeraires[0].invert().mult(1-alpha).mult(bond).getConditionalExpectation(conditionalExpectationOperator);
-			    dPdN[0][1]=numeraires[1].invert().mult(alpha+beta-1).mult(bond).getConditionalExpectation(conditionalExpectationOperator);
-			    dPdN[0][2]=numeraires[2].invert().mult(beta).mult(bond).getConditionalExpectation(conditionalExpectationOperator);
-			} else {
-				double endTime = evaluationTime+(bondIndex+1)*model.getLiborPeriodDiscretization().getTimeStep(0);
-				upperIndex = -model.getLiborPeriodIndex(endTime)-1;
-				lowerIndex = upperIndex-1;
-				double beta = (endTime-model.getLiborPeriod(lowerIndex)) / (model.getLiborPeriod(upperIndex) - model.getLiborPeriod(lowerIndex));
-				RandomVariableInterface bond = numeraireAtEval.div(model.getNumeraire(endTime));
-				dPdN[bondIndex][0]=numeraires[0].invert().mult(1-alpha).mult(bond).getConditionalExpectation(conditionalExpectationOperator);
-			    dPdN[bondIndex][1]=numeraires[1].invert().mult(alpha).mult(bond).getConditionalExpectation(conditionalExpectationOperator);
-			    dPdN[bondIndex][1+bondIndex]=numeraires[1+bondIndex].invert().mult(1-beta).mult(bond).getConditionalExpectation(conditionalExpectationOperator);
-			    dPdN[bondIndex][2+bondIndex]=numeraires[2+bondIndex].invert().mult(beta).mult(bond).getConditionalExpectation(conditionalExpectationOperator);
-			}
-		}
-*/	//	}
-		// Get pseudo inverse
-		RandomVariableInterface[][] dNdP = getPseudoInverse(dPdN);
+        dVdP = multiply(dVdP,getPseudoInverse(dPdP));
 		RandomVariableInterface[][] dPdS = getBondSwapSensitivity(evaluationTime);
-		RandomVariableInterface[] dVdS = multiply(multiply(dVdN,dNdP),dPdS);
+		RandomVariableInterface[] dVdS = multiply(dVdP,dPdS); // multiply(dVdN,dNdP)
 		return getSensitivitiesOnBuckets(dVdS);
 	}
 	
@@ -587,48 +594,18 @@ public class SIMMAAD {
 	 */
 	private RandomVariableInterface[][] getBondSwapSensitivity(double evaluationTime) throws CalculationException{
 		int numberOfBonds = getNumberOfRemainingLibors(evaluationTime);
-		RandomVariableInterface[][] dPdS = new RandomVariableInterface[numberOfBonds][numberOfBonds];
-		RandomVariableInterface[] swapRates = new RandomVariableInterface[numberOfBonds];
-		// Calculate Swap Values 
-		RandomVariableInterface sum = new RandomVariable(0.0);
-		RandomVariableInterface numeraireAtEvalTime = model.getNumeraire(evaluationTime);
-		double discountTime = evaluationTime;
-		if(evaluationTime==0){
-			for(int swapRateIndex=0;swapRateIndex<numberOfBonds; swapRateIndex++){
-				discountTime += model.getLiborPeriodDiscretization().getTimeStep(swapRateIndex); // bad 
-				RandomVariableInterface numeraireAtDiscountTime = model.getNumeraire(discountTime);
-				sum = sum.add(numeraireAtEvalTime.div(numeraireAtDiscountTime));
-				RandomVariableInterface sumCondExp = new RandomVariable(sum.getAverage());
-				RandomVariableInterface bondCondExp = new RandomVariable(numeraireAtEvalTime.div(numeraireAtDiscountTime).getAverage());
-				swapRates[swapRateIndex]= new RandomVariable(bondCondExp.mult(-1.0).add(1.0).div(sumCondExp));
-				swapRates[swapRateIndex] = new RandomVariableDifferentiableAAD(swapRates[swapRateIndex]); // forget about previous dependencies 
-			}
-		} else {
-		    for(int swapRateIndex=0;swapRateIndex<numberOfBonds; swapRateIndex++){
-			    discountTime += model.getLiborPeriodDiscretization().getTimeStep(swapRateIndex); // bad 
-			    RandomVariableInterface numeraireAtDiscountTime = model.getNumeraire(discountTime);
-			    sum = sum.add(numeraireAtEvalTime.div(numeraireAtDiscountTime));
-			    RandomVariableInterface sumCondExp = sum.getConditionalExpectation(conditionalExpectationOperator);
-			    RandomVariableInterface bondCondExp = numeraireAtEvalTime.div(numeraireAtDiscountTime).getConditionalExpectation(conditionalExpectationOperator);
-			    swapRates[swapRateIndex]= new RandomVariable(bondCondExp.mult(-1.0).add(1.0).div(sumCondExp));
-			    swapRates[swapRateIndex] = new RandomVariableDifferentiableAAD(swapRates[swapRateIndex]); // forget about previous dependencies 
+		RandomVariableInterface sum= new RandomVariable(0.0);
+		RandomVariableInterface[][] dSdP = new RandomVariableInterface[numberOfBonds][numberOfBonds];
+		for(int bondIndex=0;bondIndex<dSdP[0].length;bondIndex++){
+			RandomVariableInterface bond = model.getNumeraire(evaluationTime+(bondIndex+1)*0.5).invert().mult(model.getNumeraire(evaluationTime)).getConditionalExpectation(conditionalExpectationOperator);
+		    sum = sum.add(bond);
+		    for(int swapIndex=0;swapIndex<dSdP.length;swapIndex++){
+		    	if(swapIndex<bondIndex) dSdP[swapIndex][bondIndex] = new RandomVariable(0.0);
+		    	else if(swapIndex==bondIndex) dSdP[swapIndex][bondIndex] = sum.add(1.0).sub(bond).mult(-1.0).div(sum.squared());
+		    	else dSdP[swapIndex][bondIndex] = bond.sub(1.0).div(sum.squared());    	
 		    }
-		}
-		// Calculate dPdS with AAD
-		RandomVariableInterface bond = swapRates[0].add(1.0).pow(-1.0); //P1=1/(1+S1), always same ID
-		dPdS[0][0] = swapRates[0].add(1.0).pow(-2.0).mult(-1.0);
-		RandomVariableInterface currentBond =  bond;
-		RandomVariableInterface bondSum = new RandomVariableDifferentiableAAD(0.0);
-		for(int bondIndex=1;bondIndex<numberOfBonds;bondIndex++){
-			bondSum = bondSum.add(currentBond);
-			currentBond = swapRates[bondIndex].mult(bondSum).mult(-1.0).add(1.0).div(swapRates[bondIndex].add(1.0));
-			// Get all derivatives
-			Map<Long, RandomVariableInterface> gradientOfCurrentBond = ((RandomVariableDifferentiableInterface)currentBond).getGradient();
-			for(int swapRateIndex=0;swapRateIndex<=bondIndex;swapRateIndex++){
-				dPdS[bondIndex][swapRateIndex]= getDerivative(gradientOfCurrentBond, swapRates[swapRateIndex]);
-			}
-		}
-		return dPdS; // verify by calculating dSdP and using getPseudoInverse
+		} 
+		return getPseudoInverse(dSdP); // PseudoInverse == Inverse for n x n matrix.
 	}
 	
 	
@@ -665,6 +642,7 @@ public class SIMMAAD {
 		}
 		return pseudoInverse;
     }
+   
 
 	/*
 	 * Some useful functions 
@@ -827,6 +805,18 @@ public class SIMMAAD {
 	// Delete later..
 	public void setIgnoreDiscountCurve(boolean method){ 
 		this.isIgnoreDiscountCurve = method;
+	}
+	
+	private RandomVariableInterface[][] getPseudoInverse(double[][] matrix){
+		RealMatrix pseudoInverse = new SingularValueDecomposition(MatrixUtils.createRealMatrix(matrix)).getSolver().getInverse();
+		RandomVariableInterface[][] inv = new RandomVariableInterface[matrix[0].length][matrix.length];
+		for(int j=0;j<pseudoInverse.getColumnDimension();j++){
+		    double[] columnValues = pseudoInverse.getColumn(j);
+		    for(int i=0;i<pseudoInverse.getRowDimension();i++){
+			    inv[i][j]= new RandomVariable(columnValues[i]);
+		    }		    
+	    }
+		return inv;
 	}
 
 }

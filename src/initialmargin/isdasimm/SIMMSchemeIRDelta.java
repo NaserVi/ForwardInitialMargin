@@ -83,7 +83,7 @@ public class SIMMSchemeIRDelta {
          */
 
         int nTenors = calculationSchemeInitialMarginISDA.getParameterCollection().IRMaturityBuckets.length;
-        int nCurves = calculationSchemeInitialMarginISDA.getParameterCollection().IRCurveIndexNames.length;
+        int nCurves = calculationSchemeInitialMarginISDA.getIRCurveIndexNames().length;
 
         int dimensionTotal=nTenors*nCurves+2;
         RandomVariableInterface[] contributions = new RandomVariableInterface[dimensionTotal];
@@ -91,7 +91,7 @@ public class SIMMSchemeIRDelta {
         for (int iCurve = 0; iCurve <nCurves; iCurve++)
             for (int iTenor = 0; iTenor <nTenors; iTenor++)
             {
-                String curveKey = calculationSchemeInitialMarginISDA.getParameterCollection().IRCurveIndexNames[iCurve];
+                String curveKey = calculationSchemeInitialMarginISDA.getIRCurveIndexNames()[iCurve];
                 RandomVariableInterface iBucketSensi = this.getWeightedNetSensitivity(iTenor, curveKey, bucketKey, atTime);
                 contributions[iCurve*nTenors+iTenor] = iBucketSensi;
             }
@@ -134,7 +134,8 @@ public class SIMMSchemeIRDelta {
             riskWeight = calculationSchemeInitialMarginISDA.getParameterCollection().MapRiskClassRiskweightMap.get(riskTypeKey).get("InterestRate").get(indexName)[0][0];
         }
 
-        RandomVariableInterface netSensi =  calculationSchemeInitialMarginISDA.getNetSensitivity(this.productClassKey,this.riskClassKey,iRateTenor, indexName, bucketKey,this.riskTypeKey, atTime);
+        String maturityBucket = calculationSchemeInitialMarginISDA.getParameterCollection().IRMaturityBuckets[iRateTenor];
+        RandomVariableInterface netSensi =  calculationSchemeInitialMarginISDA.getNetSensitivity(this.productClassKey,this.riskClassKey,maturityBucket, indexName, bucketKey,this.riskTypeKey, atTime);
         if (netSensi!=null) {
             if ( indexName.equals("ccybasis"))
                 return netSensi.mult(riskWeight);
@@ -169,9 +170,9 @@ public class SIMMSchemeIRDelta {
     private RandomVariableInterface   getWeightedSensitivitySum(String bucketKey, double atTime){
         RandomVariableInterface aggregatedSensi = null;
 
-        for (int iIndex = 0; iIndex < calculationSchemeInitialMarginISDA.getParameterCollection().IRCurveIndexNames.length; iIndex++) {
+        for (int iIndex = 0; iIndex < calculationSchemeInitialMarginISDA.getIRCurveIndexNames().length; iIndex++) {
             for (int iTenor = 0; iTenor < calculationSchemeInitialMarginISDA.getParameterCollection().IRMaturityBuckets.length; iTenor++) {
-                String key = calculationSchemeInitialMarginISDA.getParameterCollection().IRCurveIndexNames[iIndex];
+                String key = calculationSchemeInitialMarginISDA.getIRCurveIndexNames()[iIndex];
                 RandomVariableInterface summand = getWeightedNetSensitivity(iTenor, key, bucketKey, atTime);
                 aggregatedSensi = aggregatedSensi == null ? aggregatedSensi = summand : aggregatedSensi.add(summand);
             }
@@ -186,14 +187,16 @@ public class SIMMSchemeIRDelta {
 
     public RandomVariableInterface getConcentrationRiskFactor(String bucketKey, double atTime){
         RandomVariableInterface sensitivitySum = null;
-        for (int iIndex = 0; iIndex < calculationSchemeInitialMarginISDA.getParameterCollection().IRCurveIndexNames.length; iIndex++) {
+        for (int iIndex = 0; iIndex < calculationSchemeInitialMarginISDA.getIRCurveIndexNames().length; iIndex++) {
             for (int iTenor = 0; iTenor < calculationSchemeInitialMarginISDA.getParameterCollection().IRMaturityBuckets.length; iTenor++) {
-                String key = calculationSchemeInitialMarginISDA.getParameterCollection().IRCurveIndexNames[iIndex];
-                RandomVariableInterface summand = calculationSchemeInitialMarginISDA.getNetSensitivity(this.productClassKey,this.riskClassKey,iTenor,key,bucketKey,"delta",atTime);//"ccybasis",bucketKey,"delta",atTime);//getWeightedNetSensitivity(iTenor, key, bucketKey, atTime);
+                String key = calculationSchemeInitialMarginISDA.getIRCurveIndexNames()[iIndex];
+                String maturityBucket = calculationSchemeInitialMarginISDA.getParameterCollection().IRMaturityBuckets[iTenor];
+                RandomVariableInterface summand = calculationSchemeInitialMarginISDA.getNetSensitivity(this.productClassKey,this.riskClassKey,maturityBucket,key,bucketKey,"delta",atTime);//"ccybasis",bucketKey,"delta",atTime);//getWeightedNetSensitivity(iTenor, key, bucketKey, atTime);
                 sensitivitySum = sensitivitySum == null ? sensitivitySum = summand : sensitivitySum.add(summand);
             }
         }
-        RandomVariableInterface inflationSensi = calculationSchemeInitialMarginISDA.getNetSensitivity(this.productClassKey,this.riskClassKey,0,"inflation",bucketKey,"delta",atTime);
+        String firstBucket = calculationSchemeInitialMarginISDA.getParameterCollection().IRMaturityBuckets[0];
+        RandomVariableInterface inflationSensi = calculationSchemeInitialMarginISDA.getNetSensitivity(this.productClassKey,this.riskClassKey,firstBucket,"inflation",bucketKey,"delta",atTime);
         sensitivitySum = sensitivitySum.add(inflationSensi); // Inflation Sensi are included in Sum, CCYBasis not
 
         Optional<Map.Entry<String,String> > optional = calculationSchemeInitialMarginISDA.getParameterCollection().IRCurrencyMap.entrySet().stream().filter(entry->entry.getKey().contains(bucketKey)).findAny();

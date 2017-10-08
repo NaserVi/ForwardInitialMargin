@@ -24,7 +24,7 @@ import initialmargin.regression.changedfinmath.products.components.AbstractNotio
 import initialmargin.regression.changedfinmath.products.components.Notional;
 import initialmargin.regression.changedfinmath.products.indices.AbstractIndex;
 import initialmargin.regression.changedfinmath.products.indices.LIBORIndex;
-import initialmargin.simm.changedfinmath.LIBORMarketModel;
+//import initialmargin.simm.changedfinmath.LIBORMarketModel;
 import net.finmath.exception.CalculationException;
 import net.finmath.marketdata.model.AnalyticModel;
 import net.finmath.marketdata.model.AnalyticModelInterface;
@@ -36,6 +36,7 @@ import net.finmath.marketdata.model.curves.ForwardCurve;
 import net.finmath.montecarlo.AbstractRandomVariableFactory;
 import net.finmath.montecarlo.BrownianMotionInterface;
 import net.finmath.montecarlo.RandomVariableFactory;
+import net.finmath.montecarlo.interestrate.LIBORMarketModel;
 import net.finmath.montecarlo.interestrate.LIBORMarketModelInterface;
 import net.finmath.montecarlo.interestrate.LIBORModelMonteCarloSimulation;
 import net.finmath.montecarlo.interestrate.LIBORModelMonteCarloSimulationInterface;
@@ -53,7 +54,7 @@ public class InitialMarginRegressionTest {
 	final static DecimalFormat formatterTime	= new DecimalFormat("0.000");
 	final static DecimalFormat formatterIM  	= new DecimalFormat("0.00000000000");
 	
-	private final static int numberOfPaths		= 5000;
+	private final static int numberOfPaths		= 1000;
 	private final static int numberOfFactors	= 1;
  
      public static void main(String[] args) throws CalculationException{

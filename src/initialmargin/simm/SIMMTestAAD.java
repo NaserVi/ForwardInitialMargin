@@ -7,31 +7,39 @@ import java.util.Map;
 
 import initialmargin.simm.SIMMAAD.CurrencyVolatility;
 import initialmargin.simm.SIMMAAD.WeightToLiborAdjustmentMethod;
-import initialmargin.simm.changedfinmath.LIBORMarketModel;
+
 import net.finmath.exception.CalculationException;
-import net.finmath.marketdata.model.curves.DiscountCurve;
+import net.finmath.analytic.model.curves.DiscountCurve;
 import net.finmath.marketdata.model.curves.DiscountCurveFromForwardCurve;
-import net.finmath.marketdata.model.curves.DiscountCurveInterface;
+import net.finmath.analytic.model.curves.DiscountCurveInterface;
 import net.finmath.marketdata.model.curves.ForwardCurve;
 import net.finmath.montecarlo.AbstractRandomVariableFactory;
 import net.finmath.montecarlo.BrownianMotionInterface;
 import net.finmath.montecarlo.RandomVariable;
 import net.finmath.montecarlo.RandomVariableFactory;
+import net.finmath.montecarlo.automaticdifferentiation.backward.RandomVariableDifferentiableAAD;
 import net.finmath.montecarlo.automaticdifferentiation.backward.RandomVariableDifferentiableAADFactory;
-import net.finmath.montecarlo.interestrate.LIBORMarketModelInterface;
-import net.finmath.montecarlo.interestrate.LIBORModelMonteCarloSimulation;
-import net.finmath.montecarlo.interestrate.LIBORModelMonteCarloSimulationInterface;
+//import net.finmath.montecarlo.interestrate.LIBORMarketModelInterface;
+//import net.finmath.montecarlo.interestrate.LIBORMarketModel;
+//import net.finmath.montecarlo.interestrate.LIBORModelMonteCarloSimulation;
+//import net.finmath.montecarlo.interestrate.LIBORModelMonteCarloSimulationInterface;
 import net.finmath.montecarlo.interestrate.modelplugins.LIBORCorrelationModelExponentialDecay;
 import net.finmath.montecarlo.interestrate.modelplugins.LIBORCovarianceModelFromVolatilityAndCorrelation;
 import net.finmath.montecarlo.interestrate.modelplugins.LIBORVolatilityModel;
 import net.finmath.montecarlo.interestrate.modelplugins.LIBORVolatilityModelFromGivenMatrix;
-import net.finmath.montecarlo.interestrate.products.AbstractLIBORMonteCarloProduct;
-import net.finmath.montecarlo.interestrate.products.Swap;
-import net.finmath.montecarlo.interestrate.products.SwapLeg;
-import net.finmath.montecarlo.interestrate.products.components.AbstractNotional;
-import net.finmath.montecarlo.interestrate.products.components.Notional;
-import net.finmath.montecarlo.interestrate.products.indices.AbstractIndex;
-import net.finmath.montecarlo.interestrate.products.indices.LIBORIndex;
+//import net.finmath.montecarlo.interestrate.products.AbstractLIBORMonteCarloProduct;
+//import net.finmath.montecarlo.interestrate.products.Swap;
+//import net.finmath.montecarlo.interestrate.products.SwapLeg;
+import initialmargin.simm.changedfinmath.*;
+import initialmargin.simm.changedfinmath.products.*;
+import initialmargin.simm.changedfinmath.products.components.*;
+import initialmargin.simm.changedfinmath.products.indices.*;
+
+
+//import net.finmath.montecarlo.interestrate.products.components.AbstractNotional;
+//import net.finmath.montecarlo.interestrate.products.components.Notional;
+//import net.finmath.montecarlo.interestrate.products.indices.AbstractIndex;
+//import net.finmath.montecarlo.interestrate.products.indices.LIBORIndex;
 import net.finmath.montecarlo.process.ProcessEulerScheme;
 import net.finmath.optimizer.SolverException;
 import net.finmath.stochastic.RandomVariableInterface;
@@ -45,19 +53,19 @@ public class SIMMTestAAD {
 	final static DecimalFormat formatterIM  	= new DecimalFormat("0.00000000000");
 	
 	// LIBOR Market Model parameters
-	private final static int numberOfPaths		= 500;
+	private final static int numberOfPaths		= 1000;
 	private final static int numberOfFactors	= 1;
 		
 	public static void main(String[] args) throws SolverException, CloneNotSupportedException, CalculationException {
 		
-		 Map<String, Object> properties = new HashMap<String, Object>();
-     	 properties.put("isGradientRetainsLeafNodesOnly", new Boolean(false));
-     	 AbstractRandomVariableFactory randomVariableFactory = new RandomVariableDifferentiableAADFactory(new RandomVariableFactory(), properties);
+		 
+     	 AbstractRandomVariableFactory randomVariableFactory = createRandomVariableFactoryAAD();
      	 
      	 // Create a Libor market Model
      	 DiscountCurve discountCurve = DiscountCurve.createDiscountCurveFromDiscountFactors("discountCurve",
      			                                                                            new double[] {0.5 , 1.0, 2.0, 5.0, 30.0} /*times*/,
-     			                                                                            new double[] {0.996 , 0.995, 0.994, 0.993, 0.98} /*discountFactors*/);
+     			                                                                            getRVAAD(new double[] {0.996 , 0.995, 0.994, 0.993, 0.98}) /*discountFactors*/);
+     			                                                                            
      	 ForwardCurve  forwardCurve = ForwardCurve.createForwardCurveFromForwards("forwardCurve",
  					                                                              new double[] {0.5 , 1.0, 2.0, 5.0, 30.0}	/* fixings of the forward */,					                                                            
  					                                                              new double[] {0.02, 0.02, 0.02, 0.02, 0.02},
@@ -151,7 +159,7 @@ public class SIMMTestAAD {
 		System.out.println("Forward Initial Margin over time");
 		
 		// Choose if discount curve should be ignored in SIMM (incorrect if ignored; just to see how long it takes with and without ignoring it)
-		SIMM_StochasticWeightAdj.setIgnoreDiscountCurve(true); // Takes much longer if false. Different implementation / method required ?!
+		SIMM_StochasticWeightAdj.setIgnoreDiscountCurve(false); // Takes much longer if false. Different implementation / method required ?!
 		SIMM_ConstantWeightAdj.setIgnoreDiscountCurve(true);
 		
 		double finalTime = 3.0; // The last time of the IM exposure to be calculated 
@@ -205,7 +213,7 @@ public class SIMMTestAAD {
 
 		DiscountCurveInterface appliedDiscountCurve;
 		if(discountCurve==null) {
-			appliedDiscountCurve = new DiscountCurveFromForwardCurve(forwardCurve);
+			appliedDiscountCurve = (DiscountCurveInterface) new DiscountCurveFromForwardCurve(forwardCurve);
 		} else {
 			appliedDiscountCurve = discountCurve;
 		}
@@ -339,7 +347,18 @@ public class SIMMTestAAD {
 	  return swaps;
 	}
 	 
-	public static boolean getFalse(){return false;}
+	public static AbstractRandomVariableFactory createRandomVariableFactoryAAD(){
+	   Map<String, Object> properties = new HashMap<String, Object>();
+	   properties.put("isGradientRetainsLeafNodesOnly", new Boolean(false));
+	   return new RandomVariableDifferentiableAADFactory(new RandomVariableFactory(), properties);
+	}
+	
+	public static RandomVariableInterface[] getRVAAD(double[] rates){
+		RandomVariableInterface[] rv = new RandomVariableInterface[rates.length];
+		for(int i=0;i<rv.length;i++) rv[i]=new RandomVariableDifferentiableAAD(rates[i]);
+		return rv;
+	}
+
 	
 }
 
