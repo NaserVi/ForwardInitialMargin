@@ -160,10 +160,10 @@ public class SIMMTestAAD {
 		
 		// Choose if discount curve should be ignored in SIMM (incorrect if ignored; just to see how long it takes with and without ignoring it)
 		SIMM_StochasticWeightAdj.setIgnoreDiscountCurve(false); // Takes much longer if false. Different implementation / method required ?!
-		SIMM_ConstantWeightAdj.setIgnoreDiscountCurve(true);
+		SIMM_ConstantWeightAdj.setIgnoreDiscountCurve(false);
 		
-		double finalTime = 3.0; // The last time of the IM exposure to be calculated 
-		double timeStep  = 0.1;
+		double finalTime = 1.0; // The last time of the IM exposure to be calculated 
+		double timeStep  = 0.125;
 		
 		// Perform Calculations
 		// 1) Stochastic
