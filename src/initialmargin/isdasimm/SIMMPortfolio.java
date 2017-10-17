@@ -55,7 +55,7 @@ public class SIMMPortfolio extends AbstractLIBORMonteCarloProduct{
     	LinearMelting,
     	Stochastic
     }
-    private SensitivityMode sensitivityMode = SensitivityMode.Stochastic;
+    private SensitivityMode sensitivityMode;
     
 	public class PortfolioInstrument {
 		private SIMMClassifiedProduct classifiedProduct;
@@ -73,7 +73,7 @@ public class SIMMPortfolio extends AbstractLIBORMonteCarloProduct{
 		   this.classifiedProduct=product;
 	    }
 	
-	    /**Calculates the sensitivity of this product. 
+	    /**Calculates the sensitivity of this product if the requested sensitivity is available. 
 	     * 
 	     * @param productClass The SIMM product class of this product (RatesFx etc.)
 	     * @param riskClass The SIMM risk class of this product (InterestRate etc.)
@@ -204,10 +204,12 @@ public class SIMMPortfolio extends AbstractLIBORMonteCarloProduct{
 	 */
 	public SIMMPortfolio(SIMMClassifiedProduct[] classifiedProducts,
 			             String calculationCurrency,
+			             SensitivityMode sensiMode,
 			             WeightToLiborAdjustmentMethod method){
 
 		  this.portfolioProducts = createPortfolioInstruments(classifiedProducts);
 		  this.calculationCCY = calculationCurrency;
+		  this.sensitivityMode = sensiMode;
 		  this.liborWeightMethod = method;
 	}
 	
@@ -546,7 +548,7 @@ public class SIMMPortfolio extends AbstractLIBORMonteCarloProduct{
 		//Calculate melted sensitivities
 		RandomVariableInterface[] meltedSensis = new RandomVariableInterface[sensitivities.length-firstIndex];
 		for(int i=0;i<meltedSensis.length;i++){
-			meltedSensis[i]=sensitivities[i+firstIndex].mult(1.0-evaluationTime/(double)riskFactorsSIMM[i+firstIndex]);
+			meltedSensis[i]=sensitivities[i+firstIndex].mult(1.0-(double)Math.round(365*evaluationTime)/(double)riskFactorsSIMM[i+firstIndex]);
 		}
 		return getSensitivitiesOnBuckets(meltedSensis, riskClass, riskFactorDays);       
 	}

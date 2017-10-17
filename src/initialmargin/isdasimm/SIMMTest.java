@@ -1,9 +1,12 @@
 package initialmargin.isdasimm;
 
+import java.text.DecimalFormat;
 import java.time.LocalDate;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 
+import initialmargin.isdasimm.SIMMPortfolio.SensitivityMode;
 import initialmargin.isdasimm.SIMMPortfolio.WeightToLiborAdjustmentMethod;
 import initialmargin.regression.changedfinmath.products.Portfolio;
 import initialmargin.simm.changedfinmath.products.Swaption;
@@ -14,9 +17,7 @@ import initialmargin.simm.changedfinmath.LIBORMarketModel;
 import initialmargin.simm.changedfinmath.LIBORMarketModelInterface;
 import initialmargin.simm.changedfinmath.LIBORModelMonteCarloSimulation;
 import initialmargin.simm.changedfinmath.LIBORModelMonteCarloSimulationInterface;
-import initialmargin.simm.changedfinmath.products.AbstractLIBORMonteCarloProduct;
-import initialmargin.simm.changedfinmath.products.Swap;
-import initialmargin.simm.changedfinmath.products.SwapLeg;
+import initialmargin.simm.changedfinmath.products.*;
 import initialmargin.simm.changedfinmath.products.components.AbstractNotional;
 import initialmargin.simm.changedfinmath.products.components.Notional;
 import initialmargin.simm.changedfinmath.products.indices.AbstractIndex;
@@ -45,7 +46,8 @@ import net.finmath.time.businessdaycalendar.BusinessdayCalendarExcludingTARGETHo
 
 
 public class SIMMTest {
-	
+   final static DecimalFormat formatterTime	= new DecimalFormat("0.000");
+   
    public static void main(String[] args) throws CalculationException{
 	   
 	   // Create a Libor market Model
@@ -63,30 +65,59 @@ public class SIMMTest {
    				                                                            discountCurve,
    				                                                            forwardCurve,0.0 /* Correlation */);
    	   
-   	   // Create ClassifiedSIMMProduct Swap
+  
+   	   // (Bermudan) Swaption
+  	   double     exerciseDate  = 4.0;	// Exercise date
+  	   double[]   fixingDates   = {4.0, 4.5, 5.0, 5.5, 6.0,6.5,7.0,7.5};   // Vector of fixing dates (must be sorted)
+  	   double[]   paymentDates  = {    4.5,5.0,5.5,6.0,6.5,7.0,7.5,8.0};	// Vector of payment dates (same length as fixing dates)
+  	   double[]   periodLength  = new double[paymentDates.length]; Arrays.fill(periodLength, 0.5);
+  	   double[]   periodNotionals = new double[periodLength.length]; Arrays.fill(periodNotionals, 100.0);
+  	   boolean[]  isPeriodStartDateExerciseDate = new boolean[periodLength.length]; Arrays.fill(isPeriodStartDateExerciseDate, true);
+  	   double[]   swapRates     = {-0.0,-0.0,-0.0,-0.0,-0.0,-0.0,-0.0,-0.0};// Vector of strikes
+  		
+  	   AbstractLIBORMonteCarloProduct swaption = new Swaption(exerciseDate,fixingDates,paymentDates,swapRates,100.0);
+       AbstractLIBORMonteCarloProduct bermudan = new BermudanSwaption(isPeriodStartDateExerciseDate,fixingDates,periodLength,paymentDates,periodNotionals, swapRates);
+   	   
+       // Create ClassifiedSIMMProduct Swap
 	   AbstractLIBORMonteCarloProduct swap = SIMMTestAAD.createSwaps(new String[] {"5Y"})[0];
 	   AbstractLIBORMonteCarloProduct swap2 = SIMMTestAAD.createSwaps(new String[] {"3Y"})[0];
-	   SIMMClassifiedProduct product1 = new SIMMClassifiedProduct(swap,"RatesFX",new String[] {"InterestRate"}, new String[] {"OIS","Libor6m"},"EUR",null,false);
+	   
+	   // Classify the products 
+	   SIMMClassifiedProduct product1 = new SIMMClassifiedProduct(bermudan,"RatesFX",new String[] {"InterestRate"}, new String[] {"OIS","Libor6m"},"EUR",null,false);
 	   SIMMClassifiedProduct product2 = new SIMMClassifiedProduct(swap2,"RatesFX",new String[] {"InterestRate"}, new String[] {"OIS","Libor6m"},"EUR",null,false);
-	   SIMMPortfolio portfolio1 = new SIMMPortfolio(new SIMMClassifiedProduct[] {product1},"EUR",WeightToLiborAdjustmentMethod.Constant);
+	   
+	   SIMMPortfolio portfolioST = new SIMMPortfolio(new SIMMClassifiedProduct[] {product1},"EUR",
+			                                         SensitivityMode.Stochastic,
+			                                         WeightToLiborAdjustmentMethod.Constant);
+	   SIMMPortfolio portfolioLM = new SIMMPortfolio(new SIMMClassifiedProduct[] {product1},"EUR",
+                                                     SensitivityMode.LinearMelting,
+                                                     WeightToLiborAdjustmentMethod.Constant);
 
-	   // Create ClassifiedSIMMProduct Swaption
-  	   double     exerciseDate  = 2.0;	// Exercise date
-  	   double[]   fixingDates   = {2.0, 2.5, 3.0, 3.5, 4.0,4.5,5.0,5.5};   // Vector of fixing dates (must be sorted)
-  	   double[]   paymentDates  = {    2.5,3.0,3.5,4.0,4.5,5.0,5.5,6.0};	// Vector of payment dates (same length as fixing dates)
-  	   double[]   swaprates     = {-0.01,-0.01,-0.01,-0.01,-0.01,-0.01,-0.01,-0.01};// Vector of strikes
-  		
-  	   //AbstractLIBORMonteCarloProduct[] swapSimple = new AbstractLIBORMonteCarloProduct[] {new SimpleSwap(fixingDates,paymentDates,swaprates, 100.0)};
-  	   //AbstractLIBORMonteCarloProduct swaption = new Swaption(exerciseDate,fixingDates,paymentDates,swaprates,100.0);
-  	   //SIMMClassifiedProduct product2 = new SIMMClassifiedProduct(swaption,"RatesFX",new String[] {"InterestRate"}, new String[] {"OIS","Libor6m"},"EUR",null,false);
-	   //SIMMPortfolio portfolio2 = new SIMMPortfolio(new SIMMClassifiedProduct[] {product2},"EUR",WeightToLiborAdjustmentMethod.Constant);
-  	  
+	   double finalIMTime=4.0;
+	   // 1)Calculate forward sensis by AAD at each time point
+	   double[] valuesST = new double[(int)(finalIMTime/0.125)];
 	   
-	   for(int i=0;i<5.0/0.125;i++){
-	      RandomVariableInterface test = portfolio1.getValue(i*0.125, model);
-	      System.out.println(test.getAverage());
-	   }
+	   long timeSTStart = System.currentTimeMillis();
+	     for(int i=0;i<finalIMTime/0.125;i++) valuesST[i] = portfolioST.getValue(i*0.125, model).getAverage();
+	   long timeSTEnd = System.currentTimeMillis();
+	   System.out.println("Time with calculation of AAD sensis at each time point: " + formatterTime.format((timeSTEnd-timeSTStart)/1000.0)+"s");
+
+	   // 1) Melt sensis linearly 
+  	   double[] valuesLM = new double[(int)(finalIMTime/0.125)];
+  	   
+  	   long timeLMStart = System.currentTimeMillis();
+	     for(int i=0;i<finalIMTime/0.125;i++) valuesLM[i] = portfolioLM.getValue(i*0.125, model).getAverage();
+	   long timeLMEnd = System.currentTimeMillis();
 	   
+	   System.out.println("Time with Melting: " + formatterTime.format((timeLMEnd-timeLMStart)/1000.0)+"s");
+	          
+	   System.out.println("IM Linear Melting" + "\t" + "IM Forward AAD Sensis");
+       
+	   for(int i=0;i<finalIMTime/0.125;i++){
+    	   System.out.println(valuesLM[i] + "\t" + valuesST[i]);
+       }
+       
+       
    }
 
 	public static  LIBORModelMonteCarloSimulationInterface createLIBORMarketModel(
