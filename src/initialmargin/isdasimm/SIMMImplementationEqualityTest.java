@@ -66,7 +66,7 @@ public class SIMMImplementationEqualityTest {
 	   	   
 	   	// NEW SIMM 
 		AbstractLIBORMonteCarloProduct swap = SIMMTestAAD.createSwaps(new String[] {"5Y"})[0]; 
-		SIMMClassifiedProduct product = new SIMMClassifiedProduct(swap,"RatesFX",new String[] {"InterestRate"}, new String[] {"OIS","Libor6m"},"EUR",null,false);
+		SIMMClassifiedProduct product = new SIMMClassifiedProduct(swap,"RatesFX",new String[] {"InterestRate"}, new String[] {"OIS","Libor6m"},"EUR",null,false,false);
 		SIMMPortfolio portfolio = new SIMMPortfolio(new SIMMClassifiedProduct[] {product},"EUR",SIMMPortfolio.SensitivityMode.Stochastic, SIMMPortfolio.WeightToLiborAdjustmentMethod.Constant);
 
 		// OLD SIMM

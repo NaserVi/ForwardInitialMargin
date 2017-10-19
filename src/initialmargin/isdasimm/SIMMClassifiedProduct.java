@@ -5,6 +5,7 @@ import initialmargin.simm.changedfinmath.products.AbstractLIBORMonteCarloProduct
 public class SIMMClassifiedProduct {
 	
 	    private AbstractLIBORMonteCarloProduct product; 
+	    private boolean isCancelable;
 	    
 	    // Product classification within ISDA SIM
 	    private String   productClass;      // RatesFX, Credit, 
@@ -23,6 +24,7 @@ public class SIMMClassifiedProduct {
 	     * @param currency The currency of this product
 	     * @param bucketKey The SIMM bucket key of this product (null for risk class InterestRate)
 	     * @param hasOptionality True if this product is not linear
+	     * @param isCancelable True if the product may be canceled before its maximum maturity
 	     */
 	    public SIMMClassifiedProduct(AbstractLIBORMonteCarloProduct product,
 			                 String   productClass,
@@ -30,7 +32,8 @@ public class SIMMClassifiedProduct {
 			                 String[] curveIndexNames,
 			                 String   currency,
 			                 String   bucketKey,
-			                 boolean  hasOptionality){
+			                 boolean  hasOptionality,
+			                 boolean  isCancelable){
 	    	
 		   this.product=product;
 		   this.productClass = productClass; 
@@ -39,6 +42,7 @@ public class SIMMClassifiedProduct {
 		   this.currency=currency;
 		   this.hasOptionality = hasOptionality;
 		   this.bucketKey = bucketKey;
+		   this.isCancelable = isCancelable;
 	    }
 	    
 	    /*
@@ -65,5 +69,8 @@ public class SIMMClassifiedProduct {
 	    }
 	    public String getBucketKey(){
 	    	return this.bucketKey;
+	    }
+	    public boolean getIsCancelable(){
+	    	return this.isCancelable;
 	    }
 }

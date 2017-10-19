@@ -6,6 +6,8 @@
 package initialmargin.simm.changedfinmath.products;
 
 import java.util.Arrays;
+import java.util.HashMap;
+import java.util.Map;
 
 import net.finmath.exception.CalculationException;
 import net.finmath.functions.AnalyticFormulas;
@@ -17,6 +19,7 @@ import net.finmath.marketdata.model.curves.ForwardCurveInterface;
 import net.finmath.marketdata.products.Swap;
 import net.finmath.marketdata.products.SwapAnnuity;
 import net.finmath.montecarlo.RandomVariable;
+import net.finmath.montecarlo.automaticdifferentiation.RandomVariableDifferentiableInterface;
 //import net.finmath.montecarlo.interestrate.LIBORModelMonteCarloSimulationInterface;
 import initialmargin.simm.changedfinmath.*;
 import net.finmath.stochastic.RandomVariableInterface;
@@ -41,9 +44,9 @@ public class Swaption extends AbstractLIBORMonteCarloProduct {
 	private double[]   periodLengths;	// Vector of payment dates (same length as fixing dates)
 	private double[]   swaprates;		// Vector of strikes
 	
-	private RandomVariableInterface barrierIndicator = null;
-	private AbstractLIBORMonteCarloProduct swap;
+
 	private final double notional;
+	private Map<Long,RandomVariableInterface> swapGradient;
 	
 	/**
 	 * Create a swaption.
@@ -129,13 +132,7 @@ public class Swaption extends AbstractLIBORMonteCarloProduct {
 	@Override
 	public RandomVariableInterface getValue(double evaluationTime, LIBORModelMonteCarloSimulationInterface model) throws CalculationException {
 		RandomVariableInterface values;
-		// CHANGED
-		if(evaluationTime > exerciseDate){
-			if(barrierIndicator == null) barrierIndicator = getValue(exerciseDate, model).mult(-1.0);
-			if(swap == null) swap = new SimpleSwap(fixingDates, paymentDates, swaprates, true, notional);
-			RandomVariableInterface swapValue = swap.getValue(evaluationTime, model);
-			values = swapValue.barrier(barrierIndicator, new RandomVariable(0.0), swapValue);
-		} else {
+		
 		
 		/*
 		 * Calculate value of the swap at exercise date on each path (beware of perfect foresight - all rates are simulationTime=exerciseDate)
@@ -193,10 +190,10 @@ public class Swaption extends AbstractLIBORMonteCarloProduct {
 		RandomVariableInterface	numeraireAtZero					= model.getNumeraire(evaluationTime);
 		RandomVariableInterface	monteCarloProbabilitiesAtZero	= model.getMonteCarloWeights(evaluationTime);
 		values = values.mult(numeraireAtZero).div(monteCarloProbabilitiesAtZero);
-
-		}
 		return values;
-	}
+		}
+		
+	
 
 	/**
 	 * This method returns the value of the product using a Black-Scholes model for the swap rate
@@ -232,6 +229,19 @@ public class Swaption extends AbstractLIBORMonteCarloProduct {
 				+ "\n" + "paymentDates: " + Arrays.toString(paymentDates)
 				+ "\n" + "periodLengths: " + Arrays.toString(periodLengths)
 				+ "\n" + "swaprates: " + Arrays.toString(swaprates);
+	}
+	public double getExerciseDate(){
+		return this.exerciseDate;
+	}
+	
+	public Map<Long,RandomVariableInterface> getSwapGradient(LIBORModelMonteCarloSimulationInterface model) throws CalculationException{
+		if(swapGradient == null){
+		   SimpleSwap swap =  new SimpleSwap(fixingDates, paymentDates, swaprates, true, notional);
+		   RandomVariableInterface barrierIndicator = new RandomVariable(1.0).barrier(new RandomVariable(getValue(exerciseDate, model).mult(-1.0)), new RandomVariable(0.0), new RandomVariable(1.0));	   
+		   RandomVariableDifferentiableInterface value = (RandomVariableDifferentiableInterface)swap.getValue(0.0, model).mult(barrierIndicator);
+		   this.swapGradient = value.getGradient();
+		}
+		return swapGradient;
 	}
 
 	

@@ -336,7 +336,7 @@ public class SIMMTestAAD {
 		    */
 		   AbstractNotional notionalF = notional;
 		   AbstractIndex indexF = null;
-		   double spreadF = 0.00;
+		   double spreadF = 0.02;
 		   ScheduleInterface scheduleF = ScheduleGenerator.createScheduleFromConventions(referenceDateF, spotOffsetDaysF, forwardStartPeriodF, maturityF, frequencyF, daycountConventionF, "first", "following", new BusinessdayCalendarExcludingTARGETHolidays(), 0, 0);
 		   SwapLeg legF = new SwapLeg(scheduleF, notionalF, indexF, spreadF, false /* isNotionalExchanged */);
 
