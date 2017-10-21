@@ -77,7 +77,7 @@ public class SIMMTest {
   	   
   	   double[]   swapRates     = {0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01};// Vector of strikes
   		
-  	   AbstractLIBORMonteCarloProduct swaption = new Swaption(exerciseDate,fixingDates,paymentDates,swapRates,100.0);
+  	   AbstractLIBORMonteCarloProduct swaption = new Swaption(exerciseDate,fixingDates,paymentDates,swapRates,100.0,"Physical");
        AbstractLIBORMonteCarloProduct bermudan = new BermudanSwaption(isPeriodStartDateExerciseDate,fixingDates,periodLength,paymentDates,periodNotionals, swapRates);
    	   
        // Create ClassifiedSIMMProduct Swap
@@ -85,7 +85,7 @@ public class SIMMTest {
 	   AbstractLIBORMonteCarloProduct swap2 = SIMMTestAAD.createSwaps(new String[] {"3Y"})[0];
 	   
 	   // Classify the products 
-	   SIMMClassifiedProduct product1 = new SIMMClassifiedProduct(bermudan,"RatesFX",new String[] {"InterestRate"}, new String[] {"OIS","Libor6m"},"EUR",null,false,false);
+	   SIMMClassifiedProduct product1 = new SIMMClassifiedProduct(swaption,"RatesFX",new String[] {"InterestRate"}, new String[] {"OIS","Libor6m"},"EUR",null,false,false);
 	   SIMMClassifiedProduct product2 = new SIMMClassifiedProduct(swap2,"RatesFX",new String[] {"InterestRate"}, new String[] {"OIS","Libor6m"},"EUR",null,false, false);
 	   
 	   SIMMPortfolio portfolioST = new SIMMPortfolio(new SIMMClassifiedProduct[] {product1},"EUR",

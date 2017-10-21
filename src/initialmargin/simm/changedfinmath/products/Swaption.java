@@ -43,6 +43,7 @@ public class Swaption extends AbstractLIBORMonteCarloProduct {
 	private double[]   paymentDates;	// Vector of payment dates (same length as fixing dates)
 	private double[]   periodLengths;	// Vector of payment dates (same length as fixing dates)
 	private double[]   swaprates;		// Vector of strikes
+	private String deliveryType;
 	
 
 	private final double notional;
@@ -57,7 +58,7 @@ public class Swaption extends AbstractLIBORMonteCarloProduct {
 	 * @param periodLengths Vector of period lengths.
 	 * @param swaprates Vector of strikes (must have same length as fixing dates).
 	 */
-	public Swaption(double exerciseDate, double[] fixingDates, double[] paymentDates, double[] periodLengths, double[] swaprates, double notional) {
+	public Swaption(double exerciseDate, double[] fixingDates, double[] paymentDates, double[] periodLengths, double[] swaprates, double notional, String deliveryType) {
 		super();
 		this.exerciseDate = exerciseDate;
 		this.fixingDates = fixingDates;
@@ -65,6 +66,7 @@ public class Swaption extends AbstractLIBORMonteCarloProduct {
 		this.periodLengths = periodLengths;
 		this.swaprates = swaprates;
 		this.notional = notional;
+		this.deliveryType = deliveryType;
 	}
 
 	/**
@@ -80,7 +82,8 @@ public class Swaption extends AbstractLIBORMonteCarloProduct {
 			double[] fixingDates,
 			double[] paymentDates,
 			double[] swaprates,
-			double notional) {
+			double notional,
+			String deliveryType) {
 		super();
 		this.exerciseDate = exerciseDate;
 		this.fixingDates = fixingDates;
@@ -88,6 +91,7 @@ public class Swaption extends AbstractLIBORMonteCarloProduct {
 		this.periodLengths = null;
 		this.swaprates = swaprates;
 		this.notional = notional;
+		this.deliveryType = deliveryType;
 	}
 
 	/**
@@ -246,6 +250,10 @@ public class Swaption extends AbstractLIBORMonteCarloProduct {
 	
 	public RandomVariableInterface getExerciseIndicator(LIBORModelMonteCarloSimulationInterface model) throws CalculationException{
 		return new RandomVariable(1.0).barrier(new RandomVariable(getValue(exerciseDate, model).mult(-1.0)), new RandomVariable(0.0), new RandomVariable(1.0));
+	}
+	
+	public String getDeliveryType(){
+		return this.deliveryType;
 	}
 
 	

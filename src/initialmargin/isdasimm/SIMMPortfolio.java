@@ -95,14 +95,15 @@ public class SIMMPortfolio extends AbstractLIBORMonteCarloProduct{
 		   RandomVariableInterface result=null;
 		   if(!classifiedProduct.getHasOptionality() && riskType!="delta") return new RandomVariable(0.0);
 		   
-		   // Create Swap from Swaption at exercise date
-		   if(classifiedProduct.getProduct() instanceof Swaption){
-			   double exerciseDate = ((Swaption)classifiedProduct.getProduct()).getExerciseDate();
-			   if(evaluationTime >= exerciseDate) initialMeltingTime = exerciseDate;
-			   if(evaluationTime>=exerciseDate && lastEvaluationTime < exerciseDate){
-				    gradientOfProduct = ((Swaption)classifiedProduct.getProduct()).getSwapGradient(model);
-				    meltingMap.clear();
-			   }
+		   // Create Swap from Swaption at exercise date for Physical delivery
+		   AbstractLIBORMonteCarloProduct product = classifiedProduct.getProduct();
+		   if(product instanceof Swaption && ((Swaption) product).getDeliveryType()=="Physical"){
+			      double exerciseDate = ((Swaption)classifiedProduct.getProduct()).getExerciseDate();
+			      if(evaluationTime >= exerciseDate) initialMeltingTime = exerciseDate;
+			      if(evaluationTime>=exerciseDate && lastEvaluationTime < exerciseDate){
+				      gradientOfProduct = ((Swaption)classifiedProduct.getProduct()).getSwapGradient(model);
+				      meltingMap.clear();
+			   }			   
 		   }
 		   
 		   
