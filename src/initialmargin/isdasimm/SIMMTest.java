@@ -67,12 +67,14 @@ public class SIMMTest {
    	   
   
    	   // (Bermudan) Swaption
-  	   double     exerciseDate  = 4.0;	// Exercise date
-  	   double[]   fixingDates   = {4.0, 4.5, 5.0, 5.5, 6.0,6.5,7.0,7.5};   // Vector of fixing dates (must be sorted)
-  	   double[]   paymentDates  = {    4.5,5.0,5.5,6.0,6.5,7.0,7.5,8.0};	// Vector of payment dates (same length as fixing dates)
+  	   double     exerciseDate  = 5.0;	// Exercise date
+  	   double[]   fixingDates   = {5.0, 5.5, 6.0, 6.5, 7.0,7.5,8.0,8.5};   // Vector of fixing dates (must be sorted)
+  	   double[]   paymentDates  = {    5.5,6.0,6.5,7.0,7.5,8.0,8.5,9.0};	// Vector of payment dates (same length as fixing dates)
   	   double[]   periodLength  = new double[paymentDates.length]; Arrays.fill(periodLength, 0.5);
   	   double[]   periodNotionals = new double[periodLength.length]; Arrays.fill(periodNotionals, 100.0);
-  	   boolean[]  isPeriodStartDateExerciseDate = new boolean[periodLength.length]; Arrays.fill(isPeriodStartDateExerciseDate, true);
+  	   boolean[]  isPeriodStartDateExerciseDate = new boolean[periodLength.length]; Arrays.fill(isPeriodStartDateExerciseDate, false);
+  	   isPeriodStartDateExerciseDate[0]=true;
+  	   
   	   double[]   swapRates     = {0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01};// Vector of strikes
   		
   	   AbstractLIBORMonteCarloProduct swaption = new Swaption(exerciseDate,fixingDates,paymentDates,swapRates,100.0);
@@ -83,7 +85,7 @@ public class SIMMTest {
 	   AbstractLIBORMonteCarloProduct swap2 = SIMMTestAAD.createSwaps(new String[] {"3Y"})[0];
 	   
 	   // Classify the products 
-	   SIMMClassifiedProduct product1 = new SIMMClassifiedProduct(swap,"RatesFX",new String[] {"InterestRate"}, new String[] {"OIS","Libor6m"},"EUR",null,false,true);
+	   SIMMClassifiedProduct product1 = new SIMMClassifiedProduct(bermudan,"RatesFX",new String[] {"InterestRate"}, new String[] {"OIS","Libor6m"},"EUR",null,false,false);
 	   SIMMClassifiedProduct product2 = new SIMMClassifiedProduct(swap2,"RatesFX",new String[] {"InterestRate"}, new String[] {"OIS","Libor6m"},"EUR",null,false, false);
 	   
 	   SIMMPortfolio portfolioST = new SIMMPortfolio(new SIMMClassifiedProduct[] {product1},"EUR",
@@ -93,7 +95,7 @@ public class SIMMTest {
                                                      SensitivityMode.LinearMelting,
                                                      WeightToLiborAdjustmentMethod.Constant);
 
-	   double finalIMTime=5.0;
+	   double finalIMTime=9.0;
 	   
 //	   System.out.println("Survival Probabilities");
 //	   for(int i=0;i<finalIMTime/0.125;i++) System.out.println(portfolioLM.getProducts()[0].getSurvivalProbability(i*0.125,model,true));
@@ -102,23 +104,23 @@ public class SIMMTest {
 	   double[] valuesST = new double[(int)(finalIMTime/0.125)];
 	   
 	   long timeSTStart = System.currentTimeMillis();
-	     for(int i=0;i<finalIMTime/0.125;i++) valuesST[i] = portfolioLM.getValue(i*0.125, model).getAverage();
+	     for(int i=0;i<finalIMTime/0.125;i++) valuesST[i] = portfolioST.getValue(i*0.125, model).getAverage();
 	   long timeSTEnd = System.currentTimeMillis();
-	   System.out.println("Time with calculation of AAD sensis at each time point: " + formatterTime.format((timeSTEnd-timeSTStart)/1000.0)+"s");
-
-	   // 1) Melt sensis linearly 
-  	   double[] valuesLM = new double[(int)(finalIMTime/0.125)];
-  	   
-  	   long timeLMStart = System.currentTimeMillis();
-	     for(int i=0;i<finalIMTime/0.125;i++) valuesLM[i] = portfolioLM.getValue(i*0.125, model).getAverage();
-	   long timeLMEnd = System.currentTimeMillis();
-  	
-	   System.out.println("Time with Melting: " + formatterTime.format((timeLMEnd-timeLMStart)/1000.0)+"s");
-	          
+//	   System.out.println("Time with calculation of AAD sensis at each time point: " + formatterTime.format((timeSTEnd-timeSTStart)/1000.0)+"s");
+//
+//	   // 1) Melt sensis linearly 
+//  	   double[] valuesLM = new double[(int)(finalIMTime/0.125)];
+//  	   
+//  	   long timeLMStart = System.currentTimeMillis();
+//	     for(int i=0;i<finalIMTime/0.125;i++) valuesLM[i] = portfolioLM.getValue(i*0.125, model).getAverage();
+//	   long timeLMEnd = System.currentTimeMillis();
+//  	
+//	   System.out.println("Time with Melting: " + formatterTime.format((timeLMEnd-timeLMStart)/1000.0)+"s");
+//	          
 	   System.out.println("IM Linear Melting" + "\t" + "IM Forward AAD Sensis");
        
 	   for(int i=0;i<finalIMTime/0.125;i++){
-    	   System.out.println(valuesLM[i] + "\t" + valuesST[i]);
+    	   System.out.println(/*valuesLM[i] + "\t" + */valuesST[i]);
        }
        
        

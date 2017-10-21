@@ -31,6 +31,8 @@ public class BermudanSwaption extends AbstractLIBORMonteCarloProduct {
 	private final double[]	paymentDates;	                // Vector of payment dates (same length as fixing dates)
 	private final double[]	periodNotionals;				// Vector of notionals for each period
 	private final double[]	swaprates;	                 	// Vector of strikes
+	
+	private RandomVariableInterface lastValuationExerciseTime;
 
 	/**
 	 * @param isPeriodStartDateExerciseDate If true, we may exercise at period start
@@ -66,6 +68,7 @@ public class BermudanSwaption extends AbstractLIBORMonteCarloProduct {
 		// After the last period the product has value zero: Initialize values to zero.
 		RandomVariableInterface values				= model.getRandomVariableForConstant(0.0);
 		RandomVariableInterface valuesUnderlying	= model.getRandomVariableForConstant(0.0);
+		RandomVariableInterface	exerciseTime	= model.getRandomVariableForConstant(fixingDates[fixingDates.length-1]+1);
 
 		// Loop backward over the swap periods
 		for(int period=fixingDates.length-1; period>=0; period--)
@@ -102,9 +105,10 @@ public class BermudanSwaption extends AbstractLIBORMonteCarloProduct {
 				// Apply the exercise criteria
 				// foreach(path) if(valueIfExcercided.get(path) < 0.0) values[path] = 0.0;
 				values = values.barrier(triggerValues, values, valuesUnderlying);
+				exerciseTime	= exerciseTime.barrier(triggerValues, exerciseTime, fixingDate);
 			}
 		}
-
+		lastValuationExerciseTime = exerciseTime;
 		//		model.discount(evaluationTime, values);
 
 		// Note that values is a relative price - no numeraire division is required
@@ -113,6 +117,11 @@ public class BermudanSwaption extends AbstractLIBORMonteCarloProduct {
 		values = values.mult(numeraireAtZero).div(monteCarloProbabilitiesAtZero);
 
 		return values;
+	}
+	
+	
+	public RandomVariableInterface getLastValuationExerciseTime() {
+		return lastValuationExerciseTime;
 	}
 
 	/**

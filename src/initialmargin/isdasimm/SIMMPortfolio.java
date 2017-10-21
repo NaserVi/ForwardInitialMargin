@@ -33,7 +33,7 @@ import initialmargin.simm.changedfinmath.products.*;
 
 public class SIMMPortfolio extends AbstractLIBORMonteCarloProduct{
 	
-	// Class variables of SIMMProductCollection
+	
 	private PortfolioInstrument[] portfolioProducts;
     private RandomVariableInterface[][] riskWeightToLiborAdjustments;
     private boolean isUseTimeGridAdjustment=true; // can be discarded later.. just to check how discount curve influences IM
@@ -60,7 +60,7 @@ public class SIMMPortfolio extends AbstractLIBORMonteCarloProduct{
 		private SIMMClassifiedProduct classifiedProduct;
 	    private Map<Long, RandomVariableInterface> gradientOfProduct; // Same for all evaluationTimes; Is reset for different products
 	    private double lastEvaluationTime;
-	    private RandomVariableInterface lifeIndicator = new RandomVariable(1.0);
+	    private boolean existsCondExpOperator = false;
 	    
 	    final private String[]  CreditMaturityBuckets = {"1y","2y","3y","5y","10y"};
         final private String[]  IRMaturityBuckets = {"2w","1m","3m","6m","1y","2y","3y","5y","10y","15y","20y","30y"};
@@ -105,12 +105,22 @@ public class SIMMPortfolio extends AbstractLIBORMonteCarloProduct{
 			   }
 		   }
 		   
+		   
+		   
 		   if(evaluationTime!=lastEvaluationTime) clear();
 			   		 		   
 		   if(gradientOfProduct==null) setGradient(model,0.0); // needs to be set only once
+		   
+		   if(evaluationTime!=lastEvaluationTime || !existsCondExpOperator) setConditionalExpectationOperator(evaluationTime, model, this);
 		
 		   if(productClass==classifiedProduct.getProductClass() && Arrays.asList(classifiedProduct.getRiskClasses()).contains(riskClass)){
 		   
+			   
+//		   RandomVariableInterface[] testBuckets = new RandomVariable[IRMaturityBuckets.length];
+//		   Arrays.fill(testBuckets, new RandomVariable(0.0));
+//		   testBuckets[7] = new RandomVariable(100);
+//		   testBuckets[8] = new RandomVariable(0);
+//		   testBuckets[6] = new RandomVariable(0);
 		   switch(riskType){
 		      case("delta"): 
 			      switch(riskClass){
@@ -139,6 +149,7 @@ public class SIMMPortfolio extends AbstractLIBORMonteCarloProduct{
 			            		if(sensitivityMode == SensitivityMode.LinearMelting){
 			            			maturityBucketSensis = meltingMap.get(riskClass).stream().filter(n -> n.containsKey(curveIndexName)).findFirst().get().get(curveIndexName);
 			            		    maturityBucketSensis = getMeltedSensitivities(initialMeltingTime,evaluationTime, maturityBucketSensis, riskClass);
+			            		    //if(curveIndexName=="Libor6m") System.out.println(maturityBucketSensis[0].getAverage() + "\t" + maturityBucketSensis[1].getAverage() + "\t" + maturityBucketSensis[2].getAverage() + "\t" + maturityBucketSensis[3].getAverage() + "\t" + maturityBucketSensis[4].getAverage() + "\t" + maturityBucketSensis[5].getAverage() + "\t" + maturityBucketSensis[6].getAverage() + "\t" + maturityBucketSensis[7].getAverage() + "\t" + maturityBucketSensis[8].getAverage());
 			            		    double survivalProbability = getSurvivalProbability(evaluationTime-initialMeltingTime,model,getClassifiedProduct().getIsCancelable());
 			            		    maturityBucketSensis = Arrays.stream(maturityBucketSensis).map(n -> n.mult(survivalProbability)).toArray(RandomVariableInterface[]::new);
 			            		} else {
@@ -182,6 +193,7 @@ public class SIMMPortfolio extends AbstractLIBORMonteCarloProduct{
 		    }
 		 }
 		this.lastEvaluationTime = evaluationTime;
+		this.existsCondExpOperator = true;
 	    return result;
 	  } // end getSensitivity()
 	
@@ -194,7 +206,7 @@ public class SIMMPortfolio extends AbstractLIBORMonteCarloProduct{
 	  public double getSurvivalProbability(double evaluationTime, LIBORModelMonteCarloSimulationInterface model, boolean isCancelable) throws CalculationException{
 		    if(evaluationTime==0 || !isCancelable) return 1.0;
 		    if(!probabilityMap.containsKey(new Double(evaluationTime))){
-		       setConditionalExpectationOperator(evaluationTime, model);
+		       setConditionalExpectationOperator(evaluationTime, model, this);
 			   RandomVariableInterface value = getProduct().getValue(evaluationTime, model);
 			   RandomVariableInterface previousLifeIndicator = probabilityMap.containsKey(new Double(lastEvaluationTime)) ? probabilityMap.get(new Double(lastEvaluationTime)) : new RandomVariable(1.0);
 			   RandomVariableInterface valueMeasurable = value.getConditionalExpectation(conditionalExpectationOperator);
@@ -253,7 +265,7 @@ public class SIMMPortfolio extends AbstractLIBORMonteCarloProduct{
 	        } 
 			this.SIMMScheme= new SIMMSchemeMain(this,this.calculationCCY);
 		}
-		setConditionalExpectationOperator(evaluationTime, model);
+		//setConditionalExpectationOperator(evaluationTime, model);
 		return SIMMScheme.getValue(evaluationTime);
 	}
 	
@@ -357,7 +369,7 @@ public class SIMMPortfolio extends AbstractLIBORMonteCarloProduct{
 	 * @throws CalculationException
 	 */
 	public RandomVariableInterface[][] getLiborSwapSensitivities(double evaluationTime) throws CalculationException{
-		if(conditionalExpectationOperator==null) setConditionalExpectationOperator(evaluationTime, model);
+		if(conditionalExpectationOperator==null) setConditionalExpectationOperator(evaluationTime, model, null);
 		RandomVariableInterface[][] dLdS=null;
 		double liborPeriodLength = model.getLiborPeriodDiscretization().getTimeStep(0);
 		
@@ -416,7 +428,7 @@ public class SIMMPortfolio extends AbstractLIBORMonteCarloProduct{
 		    double factor1 = (secondNextLiborTime-(liborTime+swapTenorLength))/(secondNextLiborTime-firstNextLiborTime);
 		    double factor2 = (liborTime-previousLiborTime)/(firstNextLiborTime-previousLiborTime);
 		    int    timeIndex = liborIndex==0 ? timeIndexAtFirstLiborPriorToEval : timeIndexAtEvaluationTime;
-		    // Get Libors. We take the average here to avoid calculation of pseudo inverse of a matrix of RV. Should be fixed.
+		    // Get Libors
 		    RandomVariableInterface previousLibor = model.getLIBOR(timeIndex, previousLiborIndex);     
 		    RandomVariableInterface nextLibor     = model.getLIBOR(timeIndex, previousLiborIndex + 1); 
 		    RandomVariableInterface logInterpol = nextLibor.mult(secondNextLiborTime-firstNextLiborTime).add(1.0).log().mult(-factor1);
@@ -439,7 +451,7 @@ public class SIMMPortfolio extends AbstractLIBORMonteCarloProduct{
 	 */
 	public RandomVariableInterface[] getValueLiborSensitivities(PortfolioInstrument product, 
 			                                                    double evaluationTime) throws CalculationException{
-		if(conditionalExpectationOperator==null) setConditionalExpectationOperator(evaluationTime, model);
+		if(conditionalExpectationOperator==null) setConditionalExpectationOperator(evaluationTime, model,product);
 		RandomVariableDifferentiableInterface numeraire = (RandomVariableDifferentiableInterface) model.getNumeraire(evaluationTime);
 		
 		// Calculate forward sensitivities
@@ -482,7 +494,7 @@ public class SIMMPortfolio extends AbstractLIBORMonteCarloProduct{
 	 */
 	public RandomVariableInterface[] getDiscountCurveSensitivities(PortfolioInstrument product, double evaluationTime) throws CalculationException{
 		// We calculate dV/dP * dP/dS. dV/dP is at t=0 since the curve starts at 0 !?!
-		if(conditionalExpectationOperator==null) setConditionalExpectationOperator(evaluationTime, model);
+		if(conditionalExpectationOperator==null) setConditionalExpectationOperator(evaluationTime, model, product);
 		final double shift = 0.0001;
 		
 		// Remove first entry from pillars if it is at time 0.
@@ -490,7 +502,7 @@ public class SIMMPortfolio extends AbstractLIBORMonteCarloProduct{
 		double[] pillars = new double[discountCurvePillars.length-index];
 		for(int i=0;i<pillars.length;i++) pillars[i]=discountCurvePillars[i+index];
 		
-		RandomVariableInterface  value = product.getProduct().getValue(0.0, model); //.mult(model.getNumeraire(evaluationTime));
+		//RandomVariableInterface  value = product.getProduct().getValue(0.0, model); //.mult(model.getNumeraire(evaluationTime));
 		Map<Long, RandomVariableInterface> gradientOfProduct = product.getGradient();//((RandomVariableDifferentiableInterface) value).getGradient();
 		int numberOfP = getNumberOfRemainingLibors(evaluationTime);
 		
@@ -721,11 +733,20 @@ public class SIMMPortfolio extends AbstractLIBORMonteCarloProduct{
 	}
 	
 	
-	private void setConditionalExpectationOperator(double evaluationTime, LIBORModelMonteCarloSimulationInterface model) throws CalculationException{
+	private void setConditionalExpectationOperator(double evaluationTime, LIBORModelMonteCarloSimulationInterface model, PortfolioInstrument product) throws CalculationException{
+		RandomVariableInterface exerciseIndicator = new RandomVariable(1.0);
+		
+		// Bermudan Swaption
+		if(product!=null && product.getProduct() instanceof BermudanSwaption){
+			   RandomVariableInterface exerciseTime = ((BermudanSwaption)product.getProduct()).getLastValuationExerciseTime();
+			   exerciseIndicator = exerciseIndicator.barrier(new RandomVariable(exerciseTime.sub(evaluationTime).mult(-1.0)),new RandomVariable(0.0),exerciseIndicator);
+		}
+		
+		
 		// Create a conditional expectation estimator with some basis functions (predictor variables) for conditional expectation estimation.
         RandomVariableInterface[] regressor = new RandomVariableInterface[2];
-        regressor[0]= model.getLIBOR(evaluationTime, evaluationTime,evaluationTime+model.getLiborPeriodDiscretization().getTimeStep(0));
-		regressor[1]= model.getLIBOR(evaluationTime, evaluationTime, model.getLiborPeriodDiscretization().getTime(model.getNumberOfLibors()-1));
+        regressor[0]= model.getLIBOR(evaluationTime, evaluationTime,evaluationTime+model.getLiborPeriodDiscretization().getTimeStep(0)).mult(exerciseIndicator);
+		regressor[1]= model.getLIBOR(evaluationTime, evaluationTime, model.getLiborPeriodDiscretization().getTime(model.getNumberOfLibors()-1)).mult(exerciseIndicator);
        	ArrayList<RandomVariableInterface> basisFunctions = getRegressionBasisFunctions(regressor, 2);
 //		Alternative definition of regressors
 //		RandomVariableInterface[] libors = getRemainingLibors(evaluationTime, model);

@@ -192,7 +192,9 @@ public class SIMMSchemeIRDelta {
                 return netSensi.mult(riskWeight);
             else {
                 RandomVariableInterface concentrationRiskFactor = this.getConcentrationRiskFactor(bucketKey,atTime);
+                //if(netSensi.abs().getAverage()>0)System.out.println("RW: " + riskWeight);
                 return netSensi.mult(riskWeight).mult(concentrationRiskFactor);
+                
             }
         }
         else
