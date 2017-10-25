@@ -17,14 +17,11 @@ import net.finmath.marketdata.model.AnalyticModelInterface;
 //import net.finmath.marketdata.model.curves.DiscountCurveInterface;
 import net.finmath.analytic.model.curves.DiscountCurveFromForwardCurve;
 import net.finmath.analytic.model.curves.DiscountCurveInterface;
-//import net.finmath.analytic.model.AnalyticModelInterface;
-//import net.finmath.analytic.model.curves.ForwardCurveInterface;
 import net.finmath.marketdata.model.curves.ForwardCurveInterface;
 import net.finmath.marketdata.model.volatilities.AbstractSwaptionMarketData;
 import net.finmath.marketdata.products.Swap;
 import net.finmath.marketdata.products.SwapAnnuity;
-//import net.finmath.analytic.products.Swap;
-//import net.finmath.analytic.products.SwapAnnuity;
+
 
 import net.finmath.montecarlo.AbstractRandomVariableFactory;
 import net.finmath.montecarlo.RandomVariableFactory;
@@ -638,7 +635,7 @@ public class LIBORMarketModel extends AbstractModel implements LIBORMarketModelI
 			 */
 			if(discountCurve != null) {
 				// This includes a control for zero bonds
-				RandomVariableInterface numerator = getRandomVariableForConstant(numeraire.invert().getAverage());
+				RandomVariableInterface numerator = getRandomVariableForConstant(numeraire.pow(-1.0).getAverage());
 				RandomVariableInterface deterministicNumeraireAdjustment = numerator.div(discountCurve.getDiscountFactor(time));
 				numeraire = numeraire.mult(deterministicNumeraireAdjustment);
 			}
@@ -710,7 +707,7 @@ public class LIBORMarketModel extends AbstractModel implements LIBORMarketModelI
 			 */
 			if(discountCurve != null) {
 				// This includes a control for zero bonds
-				RandomVariableInterface deterministicNumeraireAdjustment = getRandomVariableForConstant(numeraire.invert().getAverage()).div(discountCurve.getDiscountFactor(time));
+				RandomVariableInterface deterministicNumeraireAdjustment = getRandomVariableForConstant(numeraire.pow(-1.0).getAverage()).div(discountCurve.getDiscountFactor(time));
 				numeraire = numeraire.mult(deterministicNumeraireAdjustment);
 			}
 			// THIS IS DEVIATION FROM ORIGINAL LMM: We put the already adjusted numeraires.

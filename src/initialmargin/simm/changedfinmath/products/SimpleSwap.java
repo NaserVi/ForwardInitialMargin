@@ -112,6 +112,10 @@ public class SimpleSwap extends AbstractLIBORMonteCarloProduct {
 				+ "\n" + "paymentDates: " + Arrays.toString(paymentDates)
 				+ "\n" + "swaprates: " + Arrays.toString(swaprates);
 	}
+	
+	public double getStartTime(){
+		return this.fixingDates[0];
+	}
 
 
 }
