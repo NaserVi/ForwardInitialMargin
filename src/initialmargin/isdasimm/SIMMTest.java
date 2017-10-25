@@ -65,14 +65,14 @@ public class SIMMTest {
 					                                                              new double[] {0.02, 0.02, 0.02, 0.02, 0.02},
 					                                                              0.5/* tenor / period length */);
 					
-   	   LIBORModelMonteCarloSimulationInterface model = createLIBORMarketModel(randomVariableFactory,1000/*numberOfPaths*/, 1 /*numberOfFactors*/, 
+   	   LIBORModelMonteCarloSimulationInterface model = createLIBORMarketModel(randomVariableFactory,500/*numberOfPaths*/, 1 /*numberOfFactors*/, 
    				                                                            discountCurve,
    				                                                            forwardCurve,0.0 /* Correlation */);
    	   
   
    	   
    	   // (Bermudan) Swaption
-  	   double     exerciseTime  = 7.0;	// Exercise date
+  	   double     exerciseTime  = 5.0;	// Exercise date
   	   double     constantSwapRate = -0.01;
   	   int        numberOfPeriods = 8;
   	   double     notional        = 100;
@@ -103,7 +103,7 @@ public class SIMMTest {
 	   AbstractLIBORMonteCarloProduct swap2 = SIMMTestAAD.createSwaps(new String[] {"3Y"})[0];
 	   
 	   // Classify the products 
-	   SIMMClassifiedProduct product1 = new SIMMClassifiedProduct(simpleSwap,"RatesFX",new String[] {"InterestRate"}, new String[] {"OIS","Libor6m"},"EUR",null,false,false);
+	   SIMMClassifiedProduct product1 = new SIMMClassifiedProduct(swaption,"RatesFX",new String[] {"InterestRate"}, new String[] {"OIS","Libor6m"},"EUR","null",true,false);
 	   SIMMClassifiedProduct product2 = new SIMMClassifiedProduct(swap2,"RatesFX",new String[] {"InterestRate"}, new String[] {"OIS","Libor6m"},"EUR",null,false, false);
 	   
 	   SIMMPortfolio portfolioST = new SIMMPortfolio(new SIMMClassifiedProduct[] {product1},"EUR",
@@ -111,10 +111,10 @@ public class SIMMTest {
 			                                         WeightToLiborAdjustmentMethod.Constant,RVVector, discountCurvePillars, 0.0);
 	   SIMMPortfolio portfolioLB = new SIMMPortfolio(new SIMMClassifiedProduct[] {product1},"EUR",
                                                      SensitivityMode.LinearOnBuckets,
-                                                     WeightToLiborAdjustmentMethod.Constant,RVVector, discountCurvePillars, 50.0);
+                                                     WeightToLiborAdjustmentMethod.Constant,RVVector, discountCurvePillars, 2.0);
 	   SIMMPortfolio portfolioLL = new SIMMPortfolio(new SIMMClassifiedProduct[] {product1},"EUR",
                                                      SensitivityMode.LinearOnLiborPeriodDiscretization,
-                                                     WeightToLiborAdjustmentMethod.Constant,RVVector, discountCurvePillars, 50.0);
+                                                     WeightToLiborAdjustmentMethod.Constant,RVVector, discountCurvePillars, 2.0);
 
 	   double finalIMTime=exerciseTime+0.5*numberOfPeriods;
 	   
@@ -144,7 +144,7 @@ public class SIMMTest {
 	   double[] valuesST = new double[(int)(finalIMTime/0.125)];
 	   
 	   long timeSTStart = System.currentTimeMillis();
-	     for(int i=0;i<finalIMTime/0.125;i++) valuesST[i] = portfolioST.getValue(i*0.125, model).getAverage();
+	     for(int i=0;i<finalIMTime/0.125;i++) valuesST[i] = 0;//portfolioST.getValue(i*0.125, model).getAverage();
 	   long timeSTEnd = System.currentTimeMillis();
 	   
 	   System.out.println("Time with calculation of AAD sensis at each time point: " + formatterTime.format((timeSTEnd-timeSTStart)/1000.0)+"s");
