@@ -71,8 +71,8 @@ public class SIMMTest {
    	   
   
    	   
-   	   // (Bermudan) Swaption
-  	   double     exerciseTime  = 5.0;	// Exercise date
+   	   // Create Products
+  	   double     exerciseTime  = 4.0;	// Exercise date
   	   double     constantSwapRate = -0.01;
   	   int        numberOfPeriods = 8;
   	   double     notional        = 100;
@@ -93,72 +93,71 @@ public class SIMMTest {
   	   Arrays.fill(isPeriodStartDateExerciseDate, false);
   	   isPeriodStartDateExerciseDate[0]=true;
   	   
-  	  
+  	   // Create Products
   	   AbstractLIBORMonteCarloProduct simpleSwap = new SimpleSwap(fixingDates,paymentDates,swapRates,100);
   	   AbstractLIBORMonteCarloProduct swaption = new Swaption(exerciseTime,fixingDates,paymentDates,swapRates,100.0,"Physical");
        AbstractLIBORMonteCarloProduct bermudan = new BermudanSwaption(isPeriodStartDateExerciseDate,fixingDates,periodLength,paymentDates,periodNotionals, swapRates);
-   	   
-       // Create ClassifiedSIMMProduct Swap
-	   AbstractLIBORMonteCarloProduct swap = SIMMTestAAD.createSwaps(new String[] {"5Y"})[0];
+	   AbstractLIBORMonteCarloProduct swap = SIMMTestAAD.createSwaps(new String[]  {"5Y"})[0];
 	   AbstractLIBORMonteCarloProduct swap2 = SIMMTestAAD.createSwaps(new String[] {"3Y"})[0];
 	   
 	   // Classify the products 
 	   SIMMClassifiedProduct product1 = new SIMMClassifiedProduct(swaption,"RatesFX",new String[] {"InterestRate"}, new String[] {"OIS","Libor6m"},"EUR","null",true,false);
 	   SIMMClassifiedProduct product2 = new SIMMClassifiedProduct(swap2,"RatesFX",new String[] {"InterestRate"}, new String[] {"OIS","Libor6m"},"EUR",null,false, false);
 	   
+	   // Create SIMMPortfolios
+	   double sensiResetStep = 50.0; // Time step at which Sensis are reset for melting: if > exercise Date we have no reset
 	   SIMMPortfolio portfolioST = new SIMMPortfolio(new SIMMClassifiedProduct[] {product1},"EUR",
 			                                         SensitivityMode.Stochastic,
-			                                         WeightToLiborAdjustmentMethod.Constant,RVVector, discountCurvePillars, 0.0);
+			                                         WeightToLiborAdjustmentMethod.Stochastic,RVVector, discountCurvePillars, 0.0);
 	   SIMMPortfolio portfolioLB = new SIMMPortfolio(new SIMMClassifiedProduct[] {product1},"EUR",
                                                      SensitivityMode.LinearOnBuckets,
-                                                     WeightToLiborAdjustmentMethod.Constant,RVVector, discountCurvePillars, 2.0);
+                                                     WeightToLiborAdjustmentMethod.Constant,RVVector, discountCurvePillars, sensiResetStep);
 	   SIMMPortfolio portfolioLL = new SIMMPortfolio(new SIMMClassifiedProduct[] {product1},"EUR",
                                                      SensitivityMode.LinearOnLiborPeriodDiscretization,
-                                                     WeightToLiborAdjustmentMethod.Constant,RVVector, discountCurvePillars, 2.0);
+                                                     WeightToLiborAdjustmentMethod.Constant,RVVector, discountCurvePillars, sensiResetStep);
 
+	   // Perform calculations
 	   double finalIMTime=exerciseTime+0.5*numberOfPeriods;
+	   double timeStep = 0.05;
+	
+	   //System.out.println("Survival Probabilities");
+	   //for(int i=0;i<finalIMTime/0.125;i++) System.out.println(portfolioLM.getProducts()[0].getSurvivalProbability(i*0.125,model,true));
 	   
-//	   System.out.println("Survival Probabilities");
-//	   for(int i=0;i<finalIMTime/0.125;i++) System.out.println(portfolioLM.getProducts()[0].getSurvivalProbability(i*0.125,model,true));
-	   
-
 	   // 1) Melt sensis linearly on buckets
-  	   double[] valuesLB = new double[(int)(finalIMTime/0.125)];
+  	   double[] valuesLB = new double[(int)(finalIMTime/timeStep)];
   	  
   	   long timeLBStart = System.currentTimeMillis();
-	     for(int i=0;i<finalIMTime/0.125;i++) valuesLB[i] = portfolioLB.getValue(i*0.125, model).getAverage();
+	     for(int i=0;i<finalIMTime/timeStep;i++) valuesLB[i] = portfolioLB.getValue(i*timeStep, model).getAverage();
 	   long timeLBEnd = System.currentTimeMillis();
   	
 	   System.out.println("Time with Melting on Buckets: " + formatterTime.format((timeLBEnd-timeLBStart)/1000.0)+"s");
 	      
 	   // 2) Melt sensis linearly on LiborPeriodDiscretization
-  	   double[] valuesLL = new double[(int)(finalIMTime/0.125)];
+  	   double[] valuesLL = new double[(int)(finalIMTime/timeStep)];
   	  
   	   long timeLLStart = System.currentTimeMillis();
-	     for(int i=0;i<finalIMTime/0.125;i++) valuesLL[i] = portfolioLL.getValue(i*0.125, model).getAverage();
+	     for(int i=0;i<finalIMTime/timeStep;i++) valuesLL[i] = portfolioLL.getValue(i*timeStep, model).getAverage();
 	   long timeLLEnd = System.currentTimeMillis();
   	
 	   System.out.println("Time with Melting on LiborPeriodDiscretization: " + formatterTime.format((timeLLEnd-timeLLStart)/1000.0)+"s");
 	   
 	   // 3)Calculate forward sensis by AAD at each time point
-	   double[] valuesST = new double[(int)(finalIMTime/0.125)];
+	   double[] valuesST = new double[(int)(finalIMTime/timeStep)];
 	   
 	   long timeSTStart = System.currentTimeMillis();
-	     for(int i=0;i<finalIMTime/0.125;i++) valuesST[i] = 0;//portfolioST.getValue(i*0.125, model).getAverage();
+	     for(int i=0;i<finalIMTime/timeStep;i++) valuesST[i] = portfolioST.getValue(i*timeStep, model).getAverage();
 	   long timeSTEnd = System.currentTimeMillis();
 	   
 	   System.out.println("Time with calculation of AAD sensis at each time point: " + formatterTime.format((timeSTEnd-timeSTStart)/1000.0)+"s");
 
-	   
-	   
-	   
+
 	   System.out.println("IM Linear Melting on Buckets" + "\t" + "IM Linear Melting on LiborPeriodDiscretization" + "\t" + "IM Forward AAD Sensis");
        
-	   for(int i=0;i<finalIMTime/0.125;i++){
+	   for(int i=0;i<finalIMTime/timeStep;i++){
     	   System.out.println(valuesLB[i] + "\t" + valuesLL[i] + "\t" + valuesST[i]);
        }
-       
-       
+	   
+	   
    }
 
 	public static  LIBORModelMonteCarloSimulationInterface createLIBORMarketModel(
@@ -182,7 +181,7 @@ public class SIMMTest {
 		 * Create a simulation time discretization
 		 */
 		double lastTime	= 12.0;
-		double dt		= 0.125;
+		double dt		= 0.05;
 
 		TimeDiscretization timeDiscretization = new TimeDiscretization(0.0, (int) (lastTime / dt), dt);
       
