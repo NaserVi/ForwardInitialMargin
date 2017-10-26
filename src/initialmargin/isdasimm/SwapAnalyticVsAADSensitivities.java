@@ -91,7 +91,7 @@ public class SwapAnalyticVsAADSensitivities {
 
 	   
 	   // ------------------------------------------------------------------------------------------------------------
-	   // Calculate dVdL analytically
+	   // Compare Sensis
 	   // ------------------------------------------------------------------------------------------------------------
 	   
 	   // Calculate forward sensitivities
