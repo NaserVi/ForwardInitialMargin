@@ -8,6 +8,8 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.stream.IntStream;
 
+import org.junit.Assert;
+import org.junit.Test;
 
 import net.finmath.montecarlo.interestrate.LIBORMarketModel;
 import net.finmath.montecarlo.interestrate.LIBORMarketModelInterface;
@@ -50,7 +52,8 @@ public class SwapAnalyticVsAADSensitivities {
 
 	public  Map<Long,RandomVariableInterface> gradient;
 
-	public static void main(String[] args) throws CalculationException{ //testAADVsAnalyticSwapSensitivities() throws CalculationException{
+	@Test
+	public void testAADVsAnalyticSensis() throws CalculationException{ 
 		
 	   // Create a Libor market Model
 	   AbstractRandomVariableFactory randomVariableFactory = createRandomVariableFactoryAAD();
@@ -116,6 +119,7 @@ public class SwapAnalyticVsAADSensitivities {
 			   
 	   }
 	   System.out.println("Rel. Error " + relError/counter);
+	   Assert.assertTrue(relError/counter<0.01);
 	}
 		   
 	   
@@ -134,7 +138,7 @@ public class SwapAnalyticVsAADSensitivities {
 	 * @return
 	 * @throws CalculationException 
 	 */
-	public static RandomVariableInterface[] getAnalyticSwapLiborSensitivities(double evaluationTime, 
+	public  RandomVariableInterface[] getAnalyticSwapLiborSensitivities(double evaluationTime, 
 			                                                           double  periodLength, 
 			                                                           double[] fixingDates,
 			                                                           LIBORModelMonteCarloSimulationInterface model) throws CalculationException{
@@ -166,14 +170,13 @@ public class SwapAnalyticVsAADSensitivities {
 	 * @return The forward sensisivity dVdL (as a row vector)
 	 * @throws CalculationException
 	 */
-	public static RandomVariableInterface[] getAADSwapLiborSensitivities(double evaluationTime,
+	public RandomVariableInterface[] getAADSwapLiborSensitivities(double evaluationTime,
 																   AbstractLIBORMonteCarloProduct product,
 			                                                       LIBORModelMonteCarloSimulationInterface model) throws CalculationException{
-		//if(getGradient()==null) {
+		if(this.gradient==null) {
 			RandomVariableDifferentiableInterface value = (RandomVariableDifferentiableInterface) product.getValue(0.0, model);
-		//	this. // 
-			Map<Long,RandomVariableInterface> gradient = value.getGradient();
-		//}
+			this.gradient = value.getGradient();
+		}
 		
 		MonteCarloConditionalExpectationRegression cOperator = getConditionalExpectationOperator(evaluationTime, model);
 		RandomVariableInterface numeraireAtEval = model.getNumeraire(evaluationTime);
