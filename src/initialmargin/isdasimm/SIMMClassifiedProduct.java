@@ -1,6 +1,6 @@
 package initialmargin.isdasimm;
 
-import initialmargin.simm.changedfinmath.products.AbstractLIBORMonteCarloProduct;
+import initialmargin.isdasimm.changedfinmath.products.AbstractLIBORMonteCarloProduct;
 
 public class SIMMClassifiedProduct {
 	
