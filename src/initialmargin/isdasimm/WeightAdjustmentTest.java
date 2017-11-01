@@ -7,10 +7,13 @@ import java.util.Map;
 
 import initialmargin.isdasimm.SIMMPortfolio.SensitivityMode;
 import initialmargin.isdasimm.SIMMPortfolio.WeightToLiborAdjustmentMethod;
-
+import initialmargin.isdasimm.changedfinmath.*;
+import initialmargin.isdasimm.changedfinmath.products.*;
+import initialmargin.isdasimm.changedfinmath.products.components.*;
+import initialmargin.isdasimm.changedfinmath.products.indices.*;
 import net.finmath.exception.CalculationException;
-import net.finmath.analytic.model.curves.DiscountCurve;
 import net.finmath.marketdata.model.curves.DiscountCurveFromForwardCurve;
+import net.finmath.analytic.model.curves.DiscountCurve;
 import net.finmath.analytic.model.curves.DiscountCurveInterface;
 import net.finmath.marketdata.model.curves.ForwardCurve;
 import net.finmath.montecarlo.AbstractRandomVariableFactory;
@@ -24,11 +27,6 @@ import net.finmath.montecarlo.interestrate.modelplugins.LIBORCorrelationModelExp
 import net.finmath.montecarlo.interestrate.modelplugins.LIBORCovarianceModelFromVolatilityAndCorrelation;
 import net.finmath.montecarlo.interestrate.modelplugins.LIBORVolatilityModel;
 import net.finmath.montecarlo.interestrate.modelplugins.LIBORVolatilityModelFromGivenMatrix;
-import initialmargin.simm.changedfinmath.*;
-import initialmargin.simm.changedfinmath.products.*;
-import initialmargin.simm.changedfinmath.products.components.*;
-import initialmargin.simm.changedfinmath.products.indices.*;
-
 import net.finmath.montecarlo.process.ProcessEulerScheme;
 import net.finmath.optimizer.SolverException;
 import net.finmath.stochastic.RandomVariableInterface;
@@ -92,19 +90,19 @@ public class WeightAdjustmentTest {
  	    // Create SIMMPortfolios  
  	    SIMMPortfolio portfolioST1 = new SIMMPortfolio(new SIMMClassifiedProduct[] {product1},"EUR",
  			                                          SensitivityMode.Stochastic,
- 			                                          WeightToLiborAdjustmentMethod.Stochastic,RVVector,discountCurvePillars, Double.MAX_VALUE);
+ 			                                          WeightToLiborAdjustmentMethod.Stochastic, Double.MAX_VALUE);
 
  	    SIMMPortfolio portfolioCO1 = new SIMMPortfolio(new SIMMClassifiedProduct[] {product1},"EUR",
                                                       SensitivityMode.Stochastic,
-                                                      WeightToLiborAdjustmentMethod.Constant,RVVector,discountCurvePillars, Double.MAX_VALUE);
+                                                      WeightToLiborAdjustmentMethod.Constant, Double.MAX_VALUE);
        
  	    SIMMPortfolio portfolioST2 = new SIMMPortfolio(new SIMMClassifiedProduct[] {product1},"EUR",
                                                       SensitivityMode.Stochastic,
-                                                      WeightToLiborAdjustmentMethod.Stochastic,RVVector2,discountCurvePillars, Double.MAX_VALUE);
+                                                      WeightToLiborAdjustmentMethod.Stochastic, Double.MAX_VALUE);
 
         SIMMPortfolio portfolioCO2 = new SIMMPortfolio(new SIMMClassifiedProduct[] {product1},"EUR",
                                                       SensitivityMode.Stochastic,
-                                                      WeightToLiborAdjustmentMethod.Constant,RVVector2,discountCurvePillars, Double.MAX_VALUE);
+                                                      WeightToLiborAdjustmentMethod.Constant, Double.MAX_VALUE);
 
 		
 		// --------------------------------------------------------------------------------------------------------------------------

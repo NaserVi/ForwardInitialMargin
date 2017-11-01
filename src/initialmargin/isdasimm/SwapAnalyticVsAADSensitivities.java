@@ -66,7 +66,7 @@ public class SwapAnalyticVsAADSensitivities {
 					                                                            new double[] {0.02, 0.02, 0.02, 0.02, 0.02},
 					                                                            0.5/* tenor / period length */);
 					
-	   LIBORModelMonteCarloSimulationInterface model = createLIBORMarketModel(randomVariableFactory,1000/*numberOfPaths*/, 1 /*numberOfFactors*/, 
+	   LIBORModelMonteCarloSimulationInterface model = createLIBORMarketModel(randomVariableFactory,5000/*numberOfPaths*/, 1 /*numberOfFactors*/, 
 				                                                              discountCurve,
 				                                                              forwardCurve,0.0 /* Correlation */);
 	   
@@ -84,6 +84,7 @@ public class SwapAnalyticVsAADSensitivities {
 	   double[]   fixingDates     = new double[numberOfPeriods];
 	   double[]   paymentDates    = new double[numberOfPeriods];
 	   double[]   swapRates       = new double[numberOfPeriods];
+	   
 	   // Fill Arrays
 	   fixingDates  = IntStream.range(0, fixingDates.length).mapToDouble(i->startingTime+i*periodLength).toArray();
 	   paymentDates = IntStream.range(0,paymentDates.length).mapToDouble(i->startingTime+(i+1)*periodLength).toArray();
@@ -105,14 +106,16 @@ public class SwapAnalyticVsAADSensitivities {
 	   for(int timeIndex=0;timeIndex<(int)(paymentDates[paymentDates.length-1]/timeStep);timeIndex++){
 		   double time = timeStep*timeIndex;
 		   RandomVariableInterface[] sensisAAD = getAADSwapLiborSensitivities(time,simpleSwap,model);
-		   RandomVariableInterface[] sensisANA = getAnalyticSwapLiborSensitivities(time/*timeIndex*timeStep*/,periodLength,fixingDates,model);
+		   RandomVariableInterface[] sensisANA = getAnalyticSwapLiborSensitivities(time,periodLength,fixingDates,model);
 //		   System.out.println("Time" + "\t" + "LiborIndex" + "\t" + "SensisAAD" + "\t" + "SensisAnalytic");
 		   for(int liborIndex=0;liborIndex<sensisANA.length;liborIndex++){
 //			   System.out.println(formatterTime.format(timeIndex*timeStep) + "\t" + liborIndex + "\t" +
 //					   			  formatterSensi.format(sensisAAD[liborIndex].getAverage()) + "\t" +
 //					              formatterSensi.format(sensisANA[liborIndex].getAverage()));
+			   
 			   if(sensisANA[liborIndex].getAverage()!=0){
-			     relError +=Math.abs(sensisAAD[liborIndex].getAverage()-sensisANA[liborIndex].getAverage())/Math.abs(sensisAAD[liborIndex].getAverage());
+				 //l2error += Math.sqrt(sensisAAD[liborIndex].sub(sensisANA[liborIndex]).squared().getAverage()*1000);
+			     relError +=Math.abs(sensisAAD[liborIndex].getAverage()-sensisANA[liborIndex].getAverage())/Math.abs(sensisANA[liborIndex].getAverage());
 		         counter++;
 			   }
 		   } 
@@ -151,15 +154,18 @@ public class SwapAnalyticVsAADSensitivities {
 		int numberOfRemainingLibors = getNumberOfRemainingLibors(evaluationTime,model);
 		int numberOfSensis = evaluationTime == getNextLiborTime(evaluationTime,model) ? numberOfRemainingLibors : numberOfRemainingLibors+1;
 		RandomVariableInterface[] sensis = new RandomVariableInterface[numberOfSensis]; Arrays.fill(sensis, new RandomVariable(0.0));
-
-		RandomVariableInterface numeraireAtEval = model.getNumeraire(evaluationTime);
+		
+		//RandomVariableInterface numeraireAtEval = model.getNumeraire(evaluationTime);
+		double df = model.getModel().getDiscountCurve().getDiscountFactor(evaluationTime);
 		for(int liborIndex=0;liborIndex<numberOfSensis;liborIndex++){
 			int i = liborIndex < firstLiborIndex ? 0 : liborIndex-firstLiborIndex+1;
 			if(!(i>fixingDates.length-periodIndex || i==0) ){ //fixingDates[i-1]+periodLength<evaluationTime		
 			  // Actual Sensitivity Calculation: dV/dL = P(T,t)*periodLength
-			  RandomVariableInterface numeraireAtPayment = model.getNumeraire(fixingDates[periodIndex+i-1]+periodLength);
-			  sensis[liborIndex]=numeraireAtEval.div(numeraireAtPayment).mult(periodLength).getConditionalExpectation(cOperator);			
-		    }
+			  //RandomVariableInterface numeraireAtPayment = model.getNumeraire(fixingDates[periodIndex+i-1]+periodLength);
+			  double dfPayment = model.getModel().getDiscountCurve().getDiscountFactor(fixingDates[periodIndex+i-1]+periodLength);
+				//sensis[liborIndex]=numeraireAtEval.div(numeraireAtPayment).mult(periodLength).getConditionalExpectation(cOperator);			
+			  sensis[liborIndex]=new RandomVariable(dfPayment/df*periodLength);
+			}
 		}
 		return sensis;
 	}
@@ -227,7 +233,7 @@ public class SwapAnalyticVsAADSensitivities {
 		 * Create the libor tenor structure and the initial values
 		 */
 		double liborPeriodLength	= 0.5;
-		double liborRateTimeHorzion	= 12.0;
+		double liborRateTimeHorzion	= 5.0;
 		TimeDiscretization liborPeriodDiscretization = new TimeDiscretization(0.0, (int) (liborRateTimeHorzion / liborPeriodLength), liborPeriodLength);
 
 		DiscountCurveInterface appliedDiscountCurve;
@@ -239,8 +245,8 @@ public class SwapAnalyticVsAADSensitivities {
 		/*
 		 * Create a simulation time discretization
 		 */
-		double lastTime	= 12.0;
-		double dt		= 0.05;
+		double lastTime	= 5.0;
+		double dt		= 0.01;
 
 		TimeDiscretization timeDiscretization = new TimeDiscretization(0.0, (int) (lastTime / dt), dt);
       
@@ -248,13 +254,7 @@ public class SwapAnalyticVsAADSensitivities {
 		 * Create a volatility structure v[i][j] = sigma_j(t_i)
 		 */
 		double a = 0.0 / 20.0, b = 0.0, c = 0.25, d = 0.3 / 20.0 / 2.0;
-		//LIBORVolatilityModel volatilityModel = new LIBORVolatilityModelFourParameterExponentialFormIntegrated(timeDiscretization, liborPeriodDiscretization, a, b, c, d, false);		
-/*		LIBORVolatilityModel volatilityModel = new LIBORVolatilityModelFourParameterExponentialForm(randomVariableFactory, timeDiscretization, liborPeriodDiscretization, a, b, c, d, false);
-		double[][] volatilityMatrix = new double[timeDiscretization.getNumberOfTimeSteps()][liborPeriodDiscretization.getNumberOfTimeSteps()];
-		for(int timeIndex=0; timeIndex<timeDiscretization.getNumberOfTimeSteps(); timeIndex++) Arrays.fill(volatilityMatrix[timeIndex], d);
-		volatilityModel = new LIBORVolatilityModelFromGivenMatrix(randomVariableFactory, timeDiscretization, liborPeriodDiscretization, volatilityMatrix);
-*/
-		//___________________________________________________
+
 		
 		double[][] volatility = new double[timeDiscretization.getNumberOfTimeSteps()][liborPeriodDiscretization.getNumberOfTimeSteps()];
 		for (int timeIndex = 0; timeIndex < volatility.length; timeIndex++) {

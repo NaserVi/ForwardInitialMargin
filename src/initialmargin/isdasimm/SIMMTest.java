@@ -9,20 +9,21 @@ import java.util.stream.IntStream;
 
 import initialmargin.isdasimm.SIMMPortfolio.SensitivityMode;
 import initialmargin.isdasimm.SIMMPortfolio.WeightToLiborAdjustmentMethod;
-import initialmargin.regression.changedfinmath.products.Portfolio;
-import initialmargin.simm.changedfinmath.products.Swaption;
-import initialmargin.simm.SIMMAAD;
-import initialmargin.simm.SIMMTestAAD;
-import initialmargin.simm.SIMMAAD.CurrencyVolatility;
-import initialmargin.simm.changedfinmath.LIBORMarketModel;
-import initialmargin.simm.changedfinmath.LIBORMarketModelInterface;
-import initialmargin.simm.changedfinmath.LIBORModelMonteCarloSimulation;
-import initialmargin.simm.changedfinmath.LIBORModelMonteCarloSimulationInterface;
-import initialmargin.simm.changedfinmath.products.*;
-import initialmargin.simm.changedfinmath.products.components.AbstractNotional;
-import initialmargin.simm.changedfinmath.products.components.Notional;
-import initialmargin.simm.changedfinmath.products.indices.AbstractIndex;
-import initialmargin.simm.changedfinmath.products.indices.LIBORIndex;
+import initialmargin.isdasimm.changedfinmath.LIBORMarketModel;
+import initialmargin.isdasimm.changedfinmath.LIBORMarketModelInterface;
+import initialmargin.isdasimm.changedfinmath.LIBORModelMonteCarloSimulation;
+import initialmargin.isdasimm.changedfinmath.LIBORModelMonteCarloSimulationInterface;
+import initialmargin.isdasimm.changedfinmath.products.AbstractLIBORMonteCarloProduct;
+import initialmargin.isdasimm.changedfinmath.products.BermudanSwaption;
+import initialmargin.isdasimm.changedfinmath.products.SimpleSwap;
+import initialmargin.isdasimm.changedfinmath.products.Swap;
+import initialmargin.isdasimm.changedfinmath.products.SwapLeg;
+import initialmargin.isdasimm.changedfinmath.products.Swaption;
+import initialmargin.isdasimm.changedfinmath.products.components.AbstractNotional;
+import initialmargin.isdasimm.changedfinmath.products.components.Notional;
+import initialmargin.isdasimm.changedfinmath.products.indices.AbstractIndex;
+import initialmargin.isdasimm.changedfinmath.products.indices.LIBORIndex;
+import initialmargin.isdasimm.old.SIMMTestAADold;
 import net.finmath.analytic.model.curves.DiscountCurve;
 import net.finmath.analytic.model.curves.DiscountCurveInterface;
 import net.finmath.exception.CalculationException;
@@ -30,9 +31,7 @@ import net.finmath.marketdata.model.curves.DiscountCurveFromForwardCurve;
 import net.finmath.marketdata.model.curves.ForwardCurve;
 import net.finmath.montecarlo.AbstractRandomVariableFactory;
 import net.finmath.montecarlo.BrownianMotionInterface;
-import net.finmath.montecarlo.RandomVariable;
 import net.finmath.montecarlo.RandomVariableFactory;
-import net.finmath.montecarlo.automaticdifferentiation.RandomVariableDifferentiableInterface;
 import net.finmath.montecarlo.automaticdifferentiation.backward.RandomVariableDifferentiableAAD;
 import net.finmath.montecarlo.automaticdifferentiation.backward.RandomVariableDifferentiableAADFactory;
 import net.finmath.montecarlo.interestrate.modelplugins.LIBORCorrelationModelExponentialDecay;
@@ -53,12 +52,10 @@ public class SIMMTest {
    public static void main(String[] args) throws CalculationException{
 	   
 	   // Create a Libor market Model
-	   RandomVariableInterface[] RVVector = getRVAAD(new double[] {0.996 , 0.995, 0.994, 0.993, 0.98});
-	   double[] discountCurvePillars = new double[] {0.5 , 1.0, 2.0, 5.0, 30.0};
 	   AbstractRandomVariableFactory randomVariableFactory = createRandomVariableFactoryAAD();
    	   DiscountCurve discountCurve = DiscountCurve.createDiscountCurveFromDiscountFactors("discountCurve",
-   			                                                                            discountCurvePillars /*times*/,
-   			                                                                            RVVector /*discountFactors*/);
+   			   																			  new double[] {0.5 , 1.0, 2.0, 5.0, 30.0} /*times*/,
+   			                                                                              getRVAAD(new double[] {0.996 , 0.995, 0.994, 0.993, 0.98}) /*discountFactors*/);
    			                                                                            
    	   ForwardCurve  forwardCurve = ForwardCurve.createForwardCurveFromForwards("forwardCurve",
 					                                                              new double[] {0.5 , 1.0, 2.0, 5.0, 30.0}	/* fixings of the forward */,					                                                            
@@ -72,8 +69,8 @@ public class SIMMTest {
   
    	   
    	   // Create Products
-  	   double     exerciseTime  = 4.0;	// Exercise date
-  	   double     constantSwapRate = -0.01;
+  	   double     exerciseTime  = 2.0;	// Exercise date
+  	   double     constantSwapRate = 0.01;
   	   int        numberOfPeriods = 8;
   	   double     notional        = 100;
   	   
@@ -92,13 +89,16 @@ public class SIMMTest {
   	   Arrays.fill(swapRates, constantSwapRate); 
   	   Arrays.fill(isPeriodStartDateExerciseDate, false);
   	   isPeriodStartDateExerciseDate[0]=true;
-  	   
+  	   isPeriodStartDateExerciseDate[2]=true;
+  	   isPeriodStartDateExerciseDate[4]=true;
+  	   isPeriodStartDateExerciseDate[6]=true;
+  	  
   	   // Create Products
   	   AbstractLIBORMonteCarloProduct simpleSwap = new SimpleSwap(fixingDates,paymentDates,swapRates,100);
   	   AbstractLIBORMonteCarloProduct swaption = new Swaption(exerciseTime,fixingDates,paymentDates,swapRates,100.0,"Physical");
        AbstractLIBORMonteCarloProduct bermudan = new BermudanSwaption(isPeriodStartDateExerciseDate,fixingDates,periodLength,paymentDates,periodNotionals, swapRates);
-	   AbstractLIBORMonteCarloProduct swap = SIMMTestAAD.createSwaps(new String[]  {"5Y"})[0];
-	   AbstractLIBORMonteCarloProduct swap2 = SIMMTestAAD.createSwaps(new String[] {"3Y"})[0];
+	   AbstractLIBORMonteCarloProduct swap = SIMMTestAADold.createSwaps(new String[]  {"5Y"})[0];
+	   AbstractLIBORMonteCarloProduct swap2 = SIMMTestAADold.createSwaps(new String[] {"3Y"})[0];
 	   
 	   // Classify the products 
 	   SIMMClassifiedProduct product1 = new SIMMClassifiedProduct(swaption,"RatesFX",new String[] {"InterestRate"}, new String[] {"OIS","Libor6m"},"EUR","null",true,false);
@@ -108,13 +108,13 @@ public class SIMMTest {
 	   double sensiResetStep = 50.0; // Time step at which Sensis are reset for melting: if > exercise Date we have no reset
 	   SIMMPortfolio portfolioST = new SIMMPortfolio(new SIMMClassifiedProduct[] {product1},"EUR",
 			                                         SensitivityMode.Stochastic,
-			                                         WeightToLiborAdjustmentMethod.Stochastic,RVVector, discountCurvePillars, 0.0);
+			                                         WeightToLiborAdjustmentMethod.Constant, 0.0);
 	   SIMMPortfolio portfolioLB = new SIMMPortfolio(new SIMMClassifiedProduct[] {product1},"EUR",
                                                      SensitivityMode.LinearOnBuckets,
-                                                     WeightToLiborAdjustmentMethod.Constant,RVVector, discountCurvePillars, sensiResetStep);
+                                                     WeightToLiborAdjustmentMethod.Constant, sensiResetStep);
 	   SIMMPortfolio portfolioLL = new SIMMPortfolio(new SIMMClassifiedProduct[] {product1},"EUR",
                                                      SensitivityMode.LinearOnLiborPeriodDiscretization,
-                                                     WeightToLiborAdjustmentMethod.Constant,RVVector, discountCurvePillars, sensiResetStep);
+                                                     WeightToLiborAdjustmentMethod.Constant, sensiResetStep);
 
 	   // Perform calculations
 	   double finalIMTime=exerciseTime+0.5*numberOfPeriods;
