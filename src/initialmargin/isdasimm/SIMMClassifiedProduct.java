@@ -14,7 +14,7 @@ public class SIMMClassifiedProduct {
 	    private AbstractLIBORMonteCarloProduct product; 
 	    private boolean isCancelable;
 	    
-	    // Product classification within ISDA SIM
+	    // Product classification within ISDA SIMM
 	    private String   productClass;      // RatesFX, Credit, 
 	    private String[] riskClass;         // InterestRate, CreditQ, CreditNonQ, Equity, Commodity
 	    private String[] curveIndexNames;   // e.g. OIS & Libor6m

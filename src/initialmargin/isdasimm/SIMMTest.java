@@ -71,7 +71,7 @@ public class SIMMTest {
    	   // Create Products
   	   double     exerciseTime  = 6.0;	// Exercise date
   	   double     constantSwapRate = 0.01;
-  	   int        numberOfPeriods = 8;
+  	   int        numberOfPeriods = 6;
   	   double     notional        = 100;
   	   
   	   double[]   fixingDates     = new double[numberOfPeriods];
@@ -88,10 +88,10 @@ public class SIMMTest {
   	   Arrays.fill(periodNotionals, notional);
   	   Arrays.fill(swapRates, constantSwapRate); 
   	   Arrays.fill(isPeriodStartDateExerciseDate, false);
-  	   isPeriodStartDateExerciseDate[0]=true;
-  	   isPeriodStartDateExerciseDate[2]=true;
-  	   isPeriodStartDateExerciseDate[4]=true;
-  	   isPeriodStartDateExerciseDate[6]=true;
+//  	   isPeriodStartDateExerciseDate[0]=true;
+//  	   isPeriodStartDateExerciseDate[2]=true;
+//  	   isPeriodStartDateExerciseDate[4]=true;
+//  	   isPeriodStartDateExerciseDate[6]=true;
   	  
   	   // Create Products
   	   AbstractLIBORMonteCarloProduct simpleSwap = new SimpleSwap(fixingDates,paymentDates,swapRates,100);
@@ -101,7 +101,7 @@ public class SIMMTest {
 	   AbstractLIBORMonteCarloProduct swap2 = SIMMTestAADold.createSwaps(new String[] {"3Y"})[0];
 	   
 	   // Classify the products 
-	   SIMMClassifiedProduct product1 = new SIMMClassifiedProduct(swaption,"RatesFX",new String[] {"InterestRate"}, new String[] {"OIS","Libor6m"},"EUR","null",true,false);
+	   SIMMClassifiedProduct product1 = new SIMMClassifiedProduct(simpleSwap,"RatesFX",new String[] {"InterestRate"}, new String[] {"OIS","Libor6m"},"EUR","null",true,false);
 	   SIMMClassifiedProduct product2 = new SIMMClassifiedProduct(swap2,"RatesFX",new String[] {"InterestRate"}, new String[] {"OIS","Libor6m"},"EUR",null,false, false);
 	   
 	   // Create SIMMPortfolios
@@ -130,15 +130,15 @@ public class SIMMTest {
   	   double[] valuesLB = new double[(int)(finalIMTime/timeStep)];
   	  
   	   long timeLBStart = System.currentTimeMillis();
-	     for(int i=0;i<finalIMTime/timeStep;i++) valuesLB[i] = portfolioLB.getValue(i*timeStep, model).getAverage();
+	     for(int i=0;i<finalIMTime/timeStep;i++) valuesLB[i] = portfolioST.getValue(4.0, model).getAverage();
 	   long timeLBEnd = System.currentTimeMillis();
   	
 	   System.out.println("Time with Melting on Buckets: " + formatterTime.format((timeLBEnd-timeLBStart)/1000.0)+"s");
 	      
-	   // 2) Melt sensis linearly on LiborPeriodDiscretization
-//  	   double[] valuesLL = new double[(int)(finalIMTime/timeStep)];
+	  // 2) Melt sensis linearly on LiborPeriodDiscretization
+//     double[] valuesLL = new double[(int)(finalIMTime/timeStep)];
 //  	  
-//  	   long timeLLStart = System.currentTimeMillis();
+//     long timeLLStart = System.currentTimeMillis();
 //	     for(int i=0;i<finalIMTime/timeStep;i++) valuesLL[i] = portfolioLL.getValue(i*timeStep, model).getAverage();
 //	   long timeLLEnd = System.currentTimeMillis();
   	
@@ -149,7 +149,7 @@ public class SIMMTest {
 	   double[] valuesIP = new double[(int)(finalIMTime/timeStep)];
 	  
 	   long timeIPStart = System.currentTimeMillis();
-    //      for(int i=0;i<finalIMTime/timeStep;i++) valuesIP[i] = portfolioIP.getValue(i*timeStep, model).getAverage();
+          for(int i=0;i<finalIMTime/timeStep;i++) valuesIP[i] = portfolioIP.getValue(i*timeStep, model).getAverage();
        long timeIPEnd = System.currentTimeMillis();
 	
        System.out.println("Time with Interpolation: " + formatterTime.format((timeIPEnd-timeIPStart)/1000.0)+"s");
@@ -159,7 +159,7 @@ public class SIMMTest {
 	   double[] valuesST = new double[(int)(finalIMTime/timeStep)];
 	   
 	   long timeSTStart = System.currentTimeMillis();
-	//     for(int i=0;i<finalIMTime/timeStep;i++) valuesST[i] = portfolioST.getValue(i*timeStep, model).getAverage();
+	     for(int i=0;i<finalIMTime/timeStep;i++) valuesST[i] = portfolioST.getValue(i*timeStep, model).getAverage();
 	   long timeSTEnd = System.currentTimeMillis();
 	   
 	   System.out.println("Time with calculation of AAD sensis at each time point: " + formatterTime.format((timeSTEnd-timeSTStart)/1000.0)+"s");

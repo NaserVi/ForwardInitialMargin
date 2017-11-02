@@ -218,6 +218,7 @@ public class SIMMPortfolio extends AbstractLIBORMonteCarloProduct{
           if(((Swaption) classifiedProduct.getProduct()).getDeliveryType()=="Physical" && evaluationTime>=exerciseDate && lastEvaluationTime < exerciseDate){
 				      this.gradientOfProduct = ((Swaption)classifiedProduct.getProduct()).getSwapGradient(model);
           }
+          
 	  }
 	   
 	  public SIMMClassifiedProduct getClassifiedProduct(){
@@ -485,11 +486,14 @@ public class SIMMPortfolio extends AbstractLIBORMonteCarloProduct{
 			                                                    double evaluationTime,
 			                                                    LIBORModelMonteCarloSimulationInterface model) throws CalculationException{
 		
+		// For swaps we calculate it analytically
 		if(product.getProduct() instanceof SimpleSwap) {
 			double[] fixingDates = ((SimpleSwap)product.getProduct()).getFixingDates();
-			double notional = ((SimpleSwap)product.getProduct()).getNotional();
-			RandomVariableInterface[] swapSensis = getAnalyticSwapLiborSensitivities(evaluationTime, fixingDates ,model);
-			return Arrays.stream(swapSensis).map(n->n.mult(notional)).toArray(RandomVariableInterface[]::new);
+			double   notional = ((SimpleSwap)product.getProduct()).getNotional();
+			RandomVariableInterface[] swapSensis = getAnalyticSwapSensitivities(evaluationTime, fixingDates ,model, "Libor");
+			swapSensis = Arrays.stream(swapSensis).map(n->n.mult(notional)).toArray(RandomVariableInterface[]::new);
+			RandomVariableInterface[][] dLdL = getLiborTimeGridAdjustment(evaluationTime, model);
+			return multiply(swapSensis,dLdL);
 		}
 		
 		setConditionalExpectationOperator(evaluationTime, model,product);
@@ -505,6 +509,7 @@ public class SIMMPortfolio extends AbstractLIBORMonteCarloProduct{
 		// Set dVdL for last libor which is already fixed (if applicable)
 		int timeGridIndicator = 0;
 		int lastLiborIndex = model.getLiborPeriodDiscretization().getTimeIndexNearestLessOrEqual(evaluationTime);
+		
 		if(numberOfSensis!=numberOfRemainingLibors){
 			timeGridIndicator = 1;
 			double lastLiborTime = model.getLiborPeriodDiscretization().getTime(lastLiborIndex);
@@ -541,78 +546,78 @@ public class SIMMPortfolio extends AbstractLIBORMonteCarloProduct{
 	private RandomVariableInterface[] getDiscountCurveSensitivities(PortfolioInstrument product, 
 			                                                        double evaluationTime,
 			                                                        LIBORModelMonteCarloSimulationInterface model) throws CalculationException{
-		// We calculate dV/dP * dP/dS
-		setConditionalExpectationOperator(evaluationTime, model, product);
-		DiscountCurve discountCurve = (DiscountCurve) model.getModel().getDiscountCurve();
-
-		double[] discountCurvePillars = discountCurve.getPillarTimes();
-		
-		// Remove first entry from pillars if it is at time 0.
-		int index = discountCurvePillars[0]==0 ? 1 : 0;
-		double[] pillars = new double[discountCurvePillars.length-index];
-		for(int i=0;i<pillars.length;i++) pillars[i]=discountCurvePillars[i+index];
-		
-		// Get gradient for value of product evaluated at t. This is necessary to only account for sensis of cash flows w.r.t P(T,0) after t.
-		RandomVariableInterface  value = product.getProduct().getValue(evaluationTime, model); 
-		Map<Long, RandomVariableInterface> gradientOfProduct = ((RandomVariableDifferentiableInterface) value).getGradient();
+//		// We calculate dV/dP * dP/dS
+//		setConditionalExpectationOperator(evaluationTime, model, product);
+//		DiscountCurve discountCurve = (DiscountCurve) model.getModel().getDiscountCurve();
+//
+//		double[] discountCurvePillars = discountCurve.getPillarTimes();
+//		
+//		// Remove first entry from pillars if it is at time 0.
+//		int index = discountCurvePillars[0]==0 ? 1 : 0;
+//		double[] pillars = new double[discountCurvePillars.length-index];
+//		for(int i=0;i<pillars.length;i++) pillars[i]=discountCurvePillars[i+index];
+//		
+//		// Get gradient for value of product evaluated at t. This is necessary to only account for sensis of cash flows w.r.t P(T,0) after t.
+//		RandomVariableInterface  value = product.getProduct().getValue(evaluationTime, model); 
+//		Map<Long, RandomVariableInterface> gradientOfProduct = ((RandomVariableDifferentiableInterface) value).getGradient();
 		int numberOfP = getNumberOfRemainingLibors(evaluationTime,model);
 		
-		// lastPillarIndex = the index of the relevant pillar on the left side 
-		int lastPillarIndex = evaluationTime>pillars[0] ? new TimeDiscretization(pillars).getTimeIndexNearestLessOrEqual(evaluationTime) : 0;
-		
-        double liborPeriodLength = model.getLiborPeriodDiscretization().getTimeStep(0);
-        
-        // dVdP: The derivatives w.r.t the deterministic OIS curve i.e. dV(t)/dP(T,0)
-		RandomVariableInterface[] dVdP = new RandomVariableInterface[pillars.length-lastPillarIndex];
-     
-        TimeDiscretization curveTimes = new TimeDiscretization(pillars);
-		RandomVariableInterface[] discountFactors = new RandomVariableInterface[pillars.length];
-		
-		// get discount factors
-		for(int i=0;i<pillars.length;i++) discountFactors[i]=discountCurve.getDiscountFactor(pillars[i]);
-		
-		// dV(t)/dP(T_i;0)
-		for(int i=lastPillarIndex;i<pillars.length;i++){
-			dVdP[i-lastPillarIndex] = getDerivative(gradientOfProduct, discountFactors[i]).getConditionalExpectation(conditionalExpectationOperator);
-		}
-		
-		// Get dP(T_i;0)/dP(t+i\delta T;0): Linear interpolation on log value per time
-		RandomVariableInterface[][] dPdP = new RandomVariableInterface[numberOfP][pillars.length-lastPillarIndex];
-		
-		for(int i=0;i<dPdP.length;i++){
-			double discountTime = evaluationTime + (i+1) * liborPeriodLength;
-			if(discountTime < pillars[0]) {
-				double term = Math.pow(discountTime/pillars[0],2.0);
-				dPdP[i][0]=discountFactors[0].invert().mult(term).mult(discountFactors[0].log().mult(term).exp());
-				continue;
-			}
-			
-			// Get upper and lower index
-			int lowerIndex = curveTimes.getTimeIndexNearestLessOrEqual(discountTime); // as 0 is included in time discretization but not in pillars
-			lowerIndex = lowerIndex < 0 ? 0 : lowerIndex;
-			int upperIndex = lowerIndex+1;
-			
-			// Actual interpolation
-			double delta = (discountTime-pillars[lowerIndex])/curveTimes.getTimeStep(lowerIndex);
-			RandomVariableInterface summand1 = discountFactors[lowerIndex].log().mult((1-delta)/pillars[lowerIndex]);
-			RandomVariableInterface summand2 = discountFactors[upperIndex].log().mult(delta/pillars[upperIndex]);
-			RandomVariableInterface factor   = summand1.add(summand2).mult(discountTime).exp();
-			//Math.exp(((1-delta)/pillars[lowerIndex]*Math.log(discountFactors[lowerIndex])+delta/pillars[upperIndex]*Math.log(discountFactors[upperIndex]))*discountTime);
-			dPdP[i][lowerIndex-lastPillarIndex]=factor.div(discountFactors[lowerIndex]).mult((1-delta)/pillars[lowerIndex]*discountTime);
-			dPdP[i][upperIndex-lastPillarIndex]=factor.div(discountFactors[upperIndex]).mult(delta/pillars[upperIndex]*discountTime);
-		}
-		
-		// dVdP: dV(t)/dP(t+i\delta T;0)
-        dVdP = multiply(dVdP,getPseudoInverse(dPdP));
-        
-        // Get dV(t)/dP(t+i\delta T;t)
-        for(int i=0; i < dVdP.length; i++){
-        	double discountTime = evaluationTime + (i+1) * liborPeriodLength;
-        	RandomVariableInterface df = discountCurve.getDiscountFactor(discountTime);
-        	RandomVariableInterface bond = model.getNumeraire(evaluationTime).div(model.getNumeraire(discountTime)).getConditionalExpectation(conditionalExpectationOperator);
-        	dVdP[i] = dVdP[i].mult(df).div(bond);
-        }
-        
+//		// lastPillarIndex = the index of the relevant pillar on the left side 
+//		int lastPillarIndex = evaluationTime>pillars[0] ? new TimeDiscretization(pillars).getTimeIndexNearestLessOrEqual(evaluationTime) : 0;
+//		
+//        double liborPeriodLength = model.getLiborPeriodDiscretization().getTimeStep(0);
+//        
+//        // dVdP: The derivatives w.r.t the deterministic OIS curve i.e. dV(t)/dP(T,0)
+//		RandomVariableInterface[] dVdP = new RandomVariableInterface[pillars.length-lastPillarIndex];
+//     
+//        TimeDiscretization curveTimes = new TimeDiscretization(pillars);
+//		RandomVariableInterface[] discountFactors = new RandomVariableInterface[pillars.length];
+//		
+//		// get discount factors
+//		for(int i=0;i<pillars.length;i++) discountFactors[i]=discountCurve.getDiscountFactor(pillars[i]);
+//		
+//		// dV(t)/dP(T_i;0)
+//		for(int i=lastPillarIndex;i<pillars.length;i++){
+//			dVdP[i-lastPillarIndex] = getDerivative(gradientOfProduct, discountFactors[i]).getConditionalExpectation(conditionalExpectationOperator);
+//		}
+//		
+//		// Get dP(T_i;0)/dP(t+i\delta T;0): Linear interpolation on log value per time
+//		RandomVariableInterface[][] dPdP = new RandomVariableInterface[numberOfP][pillars.length-lastPillarIndex];
+//		
+//		for(int i=0;i<dPdP.length;i++){
+//			double discountTime = evaluationTime + (i+1) * liborPeriodLength;
+//			if(discountTime < pillars[0]) {
+//				double term = Math.pow(discountTime/pillars[0],2.0);
+//				dPdP[i][0]=discountFactors[0].invert().mult(term).mult(discountFactors[0].log().mult(term).exp());
+//				continue;
+//			}
+//			
+//			// Get upper and lower index
+//			int lowerIndex = curveTimes.getTimeIndexNearestLessOrEqual(discountTime); // as 0 is included in time discretization but not in pillars
+//			lowerIndex = lowerIndex < 0 ? 0 : lowerIndex;
+//			int upperIndex = lowerIndex+1;
+//			
+//			// Actual interpolation
+//			double delta = (discountTime-pillars[lowerIndex])/curveTimes.getTimeStep(lowerIndex);
+//			RandomVariableInterface summand1 = discountFactors[lowerIndex].log().mult((1-delta)/pillars[lowerIndex]);
+//			RandomVariableInterface summand2 = discountFactors[upperIndex].log().mult(delta/pillars[upperIndex]);
+//			RandomVariableInterface factor   = summand1.add(summand2).mult(discountTime).exp();
+//			//Math.exp(((1-delta)/pillars[lowerIndex]*Math.log(discountFactors[lowerIndex])+delta/pillars[upperIndex]*Math.log(discountFactors[upperIndex]))*discountTime);
+//			dPdP[i][lowerIndex-lastPillarIndex]=factor.div(discountFactors[lowerIndex]).mult((1-delta)/pillars[lowerIndex]*discountTime);
+//			dPdP[i][upperIndex-lastPillarIndex]=factor.div(discountFactors[upperIndex]).mult(delta/pillars[upperIndex]*discountTime);
+//		}
+//		
+//		// dVdP: dV(t)/dP(t+i\delta T;0)
+//        dVdP = multiply(dVdP,getPseudoInverse(dPdP));
+//        
+//        // Get dV(t)/dP(t+i\delta T;t)
+//        for(int i=0; i < dVdP.length; i++){
+//        	double discountTime = evaluationTime + (i+1) * liborPeriodLength;
+//        	RandomVariableInterface df = discountCurve.getDiscountFactor(discountTime);
+//        	RandomVariableInterface bond = model.getNumeraire(evaluationTime).div(model.getNumeraire(discountTime)).getConditionalExpectation(conditionalExpectationOperator);
+//        	dVdP[i] = dVdP[i].mult(df).div(bond);
+//        }
+        RandomVariableInterface[] dVdP = new RandomVariable[numberOfP]; Arrays.fill(dVdP, new RandomVariable(0.0));
         // Get dV(t)/dS(t)
 		RandomVariableInterface[][] dPdS = getBondSwapSensitivity(evaluationTime, model);
 		//for(int i=0;i<dPdS.length;i++) Arrays.fill(dPdS[i], new RandomVariable(0.0)); // remove later
@@ -648,12 +653,14 @@ public class SIMMPortfolio extends AbstractLIBORMonteCarloProduct{
 	 * @param evaluationTime The time of evaluation
 	 * @param fixingDates The fixing times of the swap floating leg
 	 * @param model The LIBOR model used for simulation of the Libors
+	 * @param withRespectTo "Libor" or "OIS"
 	 * @return
 	 * @throws CalculationException
 	 */
-	public  RandomVariableInterface[] getAnalyticSwapLiborSensitivities(double evaluationTime, 
-            															double[] fixingDates,
-            															LIBORModelMonteCarloSimulationInterface model) throws CalculationException{
+	public  RandomVariableInterface[] getAnalyticSwapSensitivities(double evaluationTime, 
+            													   double[] fixingDates,
+            													   LIBORModelMonteCarloSimulationInterface model,
+            													   String withRespectTo) throws CalculationException{
 
 			setConditionalExpectationOperator(evaluationTime,model,null /*Swap: No special treatment*/);
 			
@@ -662,7 +669,8 @@ public class SIMMPortfolio extends AbstractLIBORMonteCarloProduct{
 			periodIndex = periodIndex < 0 ? 0 : periodIndex;
 			
 			//  firstLiborIndex: Index of the Libor on the first period of the swap
-			int firstLiborIndex = fixingDates[0] > evaluationTime ? model.getLiborPeriodDiscretization().getTimeIndexNearestLessOrEqual(fixingDates[0]):0;
+			int currentLiborIndex = model.getLiborPeriodDiscretization().getTimeIndexNearestLessOrEqual(evaluationTime);
+			int firstLiborIndex   = fixingDates[0] > evaluationTime ? model.getLiborPeriodDiscretization().getTimeIndexNearestLessOrEqual(fixingDates[0]):currentLiborIndex;
 			
 			int numberOfRemainingLibors = getNumberOfRemainingLibors(evaluationTime,model);
 			int numberOfSensis = evaluationTime == getNextLiborTime(evaluationTime,model) ? numberOfRemainingLibors : numberOfRemainingLibors+1;
@@ -672,17 +680,28 @@ public class SIMMPortfolio extends AbstractLIBORMonteCarloProduct{
 			RandomVariableInterface numeraireAtEval = model.getNumeraire(evaluationTime);
 			double periodLength = model.getLiborPeriodDiscretization().getTimeStep(0);
 
-			// Actual Sensitivity Calculation: dV/dL = P(T,t)*periodLength
-			for(int liborIndex=0;liborIndex<numberOfSensis;liborIndex++){
-				int i = liborIndex < firstLiborIndex ? 0 : liborIndex-firstLiborIndex+1;
-				if(!(i>fixingDates.length-periodIndex || i==0) ){ 		
-					RandomVariableInterface numeraireAtPayment = model.getNumeraire(fixingDates[periodIndex+i-1]+periodLength);
-					sensis[liborIndex]=numeraireAtEval.div(numeraireAtPayment).mult(periodLength).getConditionalExpectation(conditionalExpectationOperator);			
-				}
+			switch(withRespectTo){
+			
+			   case("Libor"):
+				   
+			       // Actual Sensitivity Calculation: dV/dL = P(T,t)*periodLength
+			       for(int liborIndex=currentLiborIndex;liborIndex<numberOfSensis+currentLiborIndex;liborIndex++){
+				       int i = liborIndex < firstLiborIndex ? 0 : liborIndex-firstLiborIndex+1;
+				       if(!(i>fixingDates.length-periodIndex || i==0) ){ 		
+					       RandomVariableInterface numeraireAtPayment = model.getNumeraire(fixingDates[periodIndex+i-1]+periodLength);
+					       sensis[liborIndex-currentLiborIndex]=numeraireAtEval.div(numeraireAtPayment).mult(periodLength).getConditionalExpectation(conditionalExpectationOperator);			
+				       }
+			       }
+			       break;
+			       
+			   case("OIS"):
+				   
 			}
 			
 			return sensis;
 	}
+	
+
 	
 	
 
@@ -772,10 +791,6 @@ public class SIMMPortfolio extends AbstractLIBORMonteCarloProduct{
 		return derivative==null ? new RandomVariable(0.0) : derivative;
 	}
 	
-	private RandomVariableInterface getDerivative(Map<Long, RandomVariableInterface> gradient, RandomVariableInterface parameter){
-		RandomVariableInterface derivative = gradient.get(((RandomVariableDifferentiableInterface)parameter).getID());
-		return derivative==null ? new RandomVariable(0.0) : derivative;
-	}
 	
 	private int getNumberOfRemainingLibors(double evaluationTime, LIBORModelMonteCarloSimulationInterface model){
 		int nextLiborIndex = model.getLiborPeriodDiscretization().getTimeIndexNearestGreaterOrEqual(evaluationTime);
@@ -833,13 +848,13 @@ public class SIMMPortfolio extends AbstractLIBORMonteCarloProduct{
 			   exerciseIndicator = exerciseIndicator.barrier(new RandomVariable(exerciseTime.sub(evaluationTime).mult(-1.0)),new RandomVariable(0.0),exerciseIndicator);
 		}
 		
-//		// Swaption
-//		if(product!=null && product.getProduct() instanceof Swaption){
-//			double exerciseTime = ((Swaption)product.getProduct()).getExerciseDate();
-//			if(evaluationTime>=exerciseTime)  {
-//			   exerciseIndicator = ((Swaption)product.getProduct()).getExerciseIndicator(model); // 1 if exercised on this path		   
-//			}
-//		}
+		// Swaption
+		if(product!=null && product.getProduct() instanceof Swaption){
+			double exerciseTime = ((Swaption)product.getProduct()).getExerciseDate();
+			if(evaluationTime>=exerciseTime)  {
+			   exerciseIndicator = ((Swaption)product.getProduct()).getExerciseIndicator(model); // 1 if exercised on this path		   
+			}
+		}
 		
 		
 		// Create a conditional expectation estimator with some basis functions (predictor variables) for conditional expectation estimation.

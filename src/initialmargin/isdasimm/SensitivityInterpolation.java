@@ -207,7 +207,7 @@ public class SensitivityInterpolation {
 			 			 
 			 // Reset Melting Maps
 			 double[] fixingDates = ((BermudanSwaption)product).getFixingDates(evaluationTime);
-		     RandomVariableInterface[] swapSensisLibor = portfolio.getAnalyticSwapLiborSensitivities(evaluationTime, fixingDates, portfolio.getModel());
+		     RandomVariableInterface[] swapSensisLibor = portfolio.getAnalyticSwapSensitivities(evaluationTime, fixingDates, portfolio.getModel(),"Libor");
 			 
 		     // Multiply with notional
 		     double[] periodNotional = ((BermudanSwaption)product).getPeriodNotionals();
@@ -304,7 +304,11 @@ public class SensitivityInterpolation {
 			   
 			   sensisOnBuckets = portfolio.getSensitivitiesOnBuckets(meltedSensis, riskClass, null);  
 			   break;
+			   
+		    default:
+				  break;
 		    }
+		  
 			
 			return sensisOnBuckets;
 		}
