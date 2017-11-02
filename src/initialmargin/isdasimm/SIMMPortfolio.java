@@ -1,11 +1,9 @@
 package initialmargin.isdasimm;
-
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.IntStream;
 
 import org.apache.commons.math3.linear.MatrixUtils;
 import org.apache.commons.math3.linear.RealMatrix;
@@ -28,8 +26,12 @@ import net.finmath.optimizer.SolverException;
 import net.finmath.stochastic.ConditionalExpectationEstimatorInterface;
 import net.finmath.stochastic.RandomVariableInterface;
 import net.finmath.time.TimeDiscretization;
-import net.finmath.time.TimeDiscretizationInterface;
 
+/**
+ * 
+ * @author Mario Viehmann
+ *
+ */
 public class SIMMPortfolio extends AbstractLIBORMonteCarloProduct{
 	
 	
@@ -49,33 +51,34 @@ public class SIMMPortfolio extends AbstractLIBORMonteCarloProduct{
     private String calculationCCY; 
     
     public enum SensitivityMode{
-    	LinearOnBuckets,
-    	LinearOnLiborPeriodDiscretization,
+    	LinearMelting,
+    	LinearMeltingOnLiborBuckets,
     	Interpolation,
     	Stochastic
     }
     
     private SensitivityMode sensitivityMode;
-    private double sensiMeltingResetStep;
+    private double sensiResetStep;
     
 	public class PortfolioInstrument {
 		private SIMMClassifiedProduct classifiedProduct;
 	    private Map<Long, RandomVariableInterface> gradientOfProduct = null; // Same for all evaluationTimes; Is reset for different products
-	    private double lastEvaluationTime;
-	    private boolean existsCondExpOperator = false;
-	    private MeltingScheme meltingScheme;
+	    private double lastEvaluationTime = Double.MIN_VALUE;
+	    private SensitivityInterpolation sensitivityInterpolation;
+	    public SIMMPortfolio portfolio;
 	    
-	    final private String[]  CreditMaturityBuckets = {"1y","2y","3y","5y","10y"};
+	    //final private String[]  CreditMaturityBuckets = {"1y","2y","3y","5y","10y"};
         final private String[]  IRMaturityBuckets = {"2w","1m","3m","6m","1y","2y","3y","5y","10y","15y","20y","30y"};
 
 	    private HashMap<String/*RiskClass*/,List<HashMap<String/*curveIndexName*/,
 	                HashMap<String/*maturityBucket*/,RandomVariableInterface>>>> deltaSensitivities = new HashMap<String,List<HashMap<String,HashMap<String,RandomVariableInterface>>>>(); // currently only for InterestRate riskClass
 	    private RandomVariableInterface vegaSensitivity=null;
 	    
-	    private HashMap<String/*RiskClass*/,List<HashMap<String/*curveIndexName*/,RandomVariableInterface[]>>> meltingMap = new HashMap<String/*RiskClass*/,List<HashMap<String/*curveIndexName*/,RandomVariableInterface[]>>>();
 	    private HashMap<Double/*time*/,RandomVariableInterface/*survivalIndicator*/> probabilityMap = new HashMap<Double/*time*/,RandomVariableInterface/*survivalIndicator*/>();
-	    private PortfolioInstrument(SIMMClassifiedProduct product){
+	    
+	    private PortfolioInstrument(SIMMClassifiedProduct product, SIMMPortfolio portfolio){
 		   this.classifiedProduct=product;
+		   this.portfolio = portfolio;
 	    }
 	
 	    /**Calculates the sensitivity of this product if the requested sensitivity is available. 
@@ -95,21 +98,17 @@ public class SIMMPortfolio extends AbstractLIBORMonteCarloProduct{
 			                                      String bucketKey,      // currency for IR otherwise bucket nr.
 			                                      String riskType, double evaluationTime) throws CalculationException, SolverException, CloneNotSupportedException{
 	       		   
-	       RandomVariableInterface result=null;
-	       double initialMeltingTime = 0;
+	       RandomVariableInterface result = null;	   
 		   
-	       if(!classifiedProduct.getHasOptionality() && riskType!="delta") return new RandomVariable(0.0);	   
-			   		 		   
-		   if(gradientOfProduct==null) setGradient(model,0.0); // needs to be set only once
-		   
+	       if(!classifiedProduct.getHasOptionality() && riskType!="delta") return new RandomVariable(0.0);		   
+	       
 		   if(classifiedProduct.getProduct() instanceof Swaption) resetSwaptionGradient(evaluationTime);
 		   
-		   if(evaluationTime!=lastEvaluationTime) clearMaps(); 
-		   
-		   if(evaluationTime!=lastEvaluationTime || !existsCondExpOperator) setConditionalExpectationOperator(evaluationTime, model, this);
-		   
-		   if(sensitivityMode != SensitivityMode.Stochastic) initialMeltingTime = getInitialMeltingTime(evaluationTime);
-		
+		   if(evaluationTime!=lastEvaluationTime) {
+			   clearMaps();  // Clear the deltaSensitivity Map. It needs to be reset at each time step.
+			   setConditionalExpectationOperator(evaluationTime, model, this);
+		   }
+		   		
 		   if(productClass==classifiedProduct.getProductClass() && Arrays.asList(classifiedProduct.getRiskClasses()).contains(riskClass)){
 		   
 		   switch(riskType){
@@ -118,47 +117,39 @@ public class SIMMPortfolio extends AbstractLIBORMonteCarloProduct{
 			          case("InterestRate"):
 			 
 			              if(Arrays.asList(classifiedProduct.getCurveIndexNames()).contains(curveIndexName) & bucketKey==classifiedProduct.getCurrency()){
-				             // There exists a sensitivity. Check if the sensitivities (on all maturityBuckets) have already been calculated for given riskClass and riskType)
+				              // There exists a sensitivity. Check if the sensitivities (on all maturityBuckets) have already been calculated for given riskClass and riskType)
 			            	  
 			            	  if(!deltaSensitivities.containsKey(riskClass) || !deltaSensitivities.get(riskClass).stream().filter(n-> n.containsKey(curveIndexName)).findAny().isPresent()){
-					            // The sensitivities need to be calculated for the given riskClass and riskType
-			            		RandomVariableInterface[] deltaSensis; // Sensitivities dVdS on LiborPeriodDiscretization
+					            
+			            		// The sensitivities need to be calculated for the given riskClass and riskType
+			            		RandomVariableInterface[] deltaSensis;          // Sensitivities dVdS on LiborPeriodDiscretization
 			            		RandomVariableInterface[] maturityBucketSensis; // Sensitivities mapped on the SIMM Buckets
-			            		if(sensitivityMode != SensitivityMode.Stochastic & (!meltingMap.containsKey(riskClass) || !meltingMap.get(riskClass).stream().filter(n-> n.containsKey(curveIndexName)).findAny().isPresent())) {
-			            			deltaSensis = doCalculateDeltaSensitivitiesIR(curveIndexName, this,initialMeltingTime, model);
-			            			if(sensitivityMode == SensitivityMode.LinearOnBuckets) deltaSensis = getSensitivitiesOnBuckets(deltaSensis, riskClass, null);
-			            			// Create a new element of the curveIndex List for given risk class		         
-						            HashMap<String,RandomVariableInterface[]> curveIndexNameSensiMap = new HashMap<String,RandomVariableInterface[]>();
-						            curveIndexNameSensiMap.put(curveIndexName,deltaSensis);
-						            // Check if list already exist
-						            if(meltingMap.containsKey(riskClass)){
-						            	meltingMap.get(riskClass).add(curveIndexNameSensiMap);
-						            } else {
-						            	List<HashMap<String/*curveIndexName*/,RandomVariableInterface[]>> list = new ArrayList<HashMap<String/*curveIndexName*/,RandomVariableInterface[]>>();
-						            	list.add(curveIndexNameSensiMap);
-						            	meltingMap.put(riskClass, list);
-						            }	
-			            		}  
-			            		if(sensitivityMode != SensitivityMode.Stochastic){			  
-			            			deltaSensis = meltingMap.get(riskClass).stream().filter(n -> n.containsKey(curveIndexName)).findFirst().get().get(curveIndexName);			        			         
-			            			maturityBucketSensis = getMeltedSensitivities(initialMeltingTime,evaluationTime, deltaSensis, riskClass);
+			            				            		
+			            		if(sensitivityMode != SensitivityMode.Stochastic){
+			            			
+			            			maturityBucketSensis = sensitivityInterpolation.getDeltaSensitivities(riskClass, curveIndexName, evaluationTime, model);
+			            			
+			            		    double initialMeltingTime = sensitivityInterpolation.getInitialMeltingTime(evaluationTime);	            				            		    
+			            			
 			            		    //if(curveIndexName=="Libor6m") System.out.println(maturityBucketSensis[0].getAverage() + "\t" + maturityBucketSensis[1].getAverage() + "\t" + maturityBucketSensis[2].getAverage() + "\t" + maturityBucketSensis[3].getAverage() + "\t" + maturityBucketSensis[4].getAverage() + "\t" + maturityBucketSensis[5].getAverage() + "\t" + maturityBucketSensis[6].getAverage() + "\t" + maturityBucketSensis[7].getAverage() + "\t" + maturityBucketSensis[8].getAverage());
 			            		    double survivalProbability = getSurvivalProbability(evaluationTime-initialMeltingTime,model,getClassifiedProduct().getIsCancelable());
 			            		    maturityBucketSensis = Arrays.stream(maturityBucketSensis).map(n -> n.mult(survivalProbability)).toArray(RandomVariableInterface[]::new);
+			            		
 			            		} else { // SensitivityMode.Stochastic
 			            			deltaSensis = doCalculateDeltaSensitivitiesIR(curveIndexName, this, evaluationTime, model);
 					                maturityBucketSensis = getSensitivitiesOnBuckets(deltaSensis,"InterestRate",null); // currently only for riskClass IR
 			            		}
+			            		
 					            // Create a new element of the curveIndex List for given risk class		         
 					            HashMap<String,HashMap<String,RandomVariableInterface>> curveIndexNameSensiMap = new HashMap<String,HashMap<String,RandomVariableInterface>>();
 					            HashMap<String,RandomVariableInterface> bucketSensitivities = new HashMap<String,RandomVariableInterface>();
 					           
 					            for(int i=0;i<IRMaturityBuckets.length;i++) bucketSensitivities.put(IRMaturityBuckets[i], maturityBucketSensis[i]);
 					            curveIndexNameSensiMap.put(curveIndexName,bucketSensitivities);
+					            
 					            // Check if list already exist
-					            if(deltaSensitivities.containsKey(riskClass)){
-					            	deltaSensitivities.get(riskClass).add(curveIndexNameSensiMap);
-					            } else {
+					            if(deltaSensitivities.containsKey(riskClass)) deltaSensitivities.get(riskClass).add(curveIndexNameSensiMap);
+					            else {
 					            	List<HashMap<String/*curveIndexName*/,HashMap<String/*maturityBucket*/,RandomVariableInterface>>> list = new ArrayList<HashMap<String/*curveIndexName*/,HashMap<String/*maturityBucket*/,RandomVariableInterface>>>();
 					            	list.add(curveIndexNameSensiMap);
 					            	deltaSensitivities.put(riskClass, list);
@@ -186,8 +177,8 @@ public class SIMMPortfolio extends AbstractLIBORMonteCarloProduct{
 			       }
 		    }
 		 }
+		   
 		this.lastEvaluationTime = evaluationTime;
-		this.existsCondExpOperator = true;
 	    return result;
 	  } // end getSensitivity()
 	
@@ -221,102 +212,7 @@ public class SIMMPortfolio extends AbstractLIBORMonteCarloProduct{
 	  public void clearGradient(){
 		  this.gradientOfProduct=null;
 	  }
-	  
-	  private double getInitialMeltingTime(double evaluationTime) throws CalculationException{
-		   // Create Swap from Swaption at exercise date for Physical delivery
-		   TimeDiscretizationInterface initialMeltingTimes = new TimeDiscretization(0,50,sensiMeltingResetStep);
-		   double initialMeltingTime = initialMeltingTimes.getTime(initialMeltingTimes.getTimeIndexNearestLessOrEqual(evaluationTime));
-		   
-		   AbstractLIBORMonteCarloProduct product = this.classifiedProduct.getProduct();
-		   if(product instanceof Swaption){
-			      double exerciseDate = ((Swaption)classifiedProduct.getProduct()).getExerciseDate();
-			      // Reset initial Melting Time before exercise only
-			      if(evaluationTime==initialMeltingTime && lastEvaluationTime!=evaluationTime && evaluationTime < exerciseDate) meltingMap.clear();
-			      
-			      if(((Swaption) product).getDeliveryType()=="Physical" && evaluationTime>=exerciseDate){
-			    	  if(lastEvaluationTime < exerciseDate) meltingMap.clear();
-			    	  initialMeltingTime = exerciseDate;
-			      }
-			      			      		   
-		   }
-		   else if(product instanceof SimpleSwap){
-			   double forwardStartTime = ((SimpleSwap)product).getStartTime();
-			   if(evaluationTime==initialMeltingTime && lastEvaluationTime!=evaluationTime && evaluationTime < forwardStartTime) meltingMap.clear();
-			      
-			   if(evaluationTime>=forwardStartTime){			    
-			    	  initialMeltingTime = forwardStartTime;
-			    	  if(lastEvaluationTime < forwardStartTime) meltingMap.clear();
-			   }			   
-		   }
-		   else if(product instanceof BermudanSwaption){
-			   double firstExerciseTime = ((BermudanSwaption)product).getLastValuationExerciseTime().getMin();
-			   if(evaluationTime==initialMeltingTime && lastEvaluationTime!=evaluationTime && evaluationTime <firstExerciseTime) meltingMap.clear();
-		       if(evaluationTime >= firstExerciseTime) {
-		    	   initialMeltingTime = setBermudanMeltingMapAndTime(evaluationTime, product);
-		       }
-		   }
-		   
-		   
-		   return initialMeltingTime;
-	  }
-	  
-	  
-	  private double setBermudanMeltingMapAndTime(double evaluationTime, AbstractLIBORMonteCarloProduct product) throws CalculationException{
-		  double[] exerciseTimes = ((BermudanSwaption)product).getExerciseTimes();
-		  int lastExerciseIndex = new TimeDiscretization(exerciseTimes).getTimeIndexNearestLessOrEqual(evaluationTime);
-		  double lastExerciseTime = new TimeDiscretization(exerciseTimes).getTime(lastExerciseIndex);
-		  double previousExerciseTime = lastExerciseIndex==0 ? lastExerciseTime : new TimeDiscretization(exerciseTimes).getTime(lastExerciseIndex-1);
-		  
-		  // Reset initial melting time
-	      double initialMeltingTime = lastExerciseTime;
-
-		  RandomVariableInterface[] currentSensisOIS;
-		  RandomVariableInterface[] currentSensisLibor;
-		  
-		  if(evaluationTime>=lastExerciseTime && lastEvaluationTime <lastExerciseTime)  {		
-			 			 
-			 // Reset Melting Maps
-			 double[] fixingDates = ((BermudanSwaption)product).getFixingDates(evaluationTime);
-		     RandomVariableInterface[] swapSensisLibor = getAnalyticSwapLiborSensitivities(evaluationTime, fixingDates, model);
-			 // Multiply with notional
-		     double[] periodNotional = ((BermudanSwaption)product).getPeriodNotionals();
-		     for(int i=0;i<periodNotional.length;i++) swapSensisLibor[i] = swapSensisLibor[i].mult(periodNotional[i]);
-		     
-		     if(lastExerciseTime==exerciseTimes[0]) { // The melting map is created at the first exercise time. We need to clear it.
-				 meltingMap.clear();
-				 currentSensisLibor = new RandomVariableInterface[swapSensisLibor.length];
-				 currentSensisOIS   = new RandomVariableInterface[swapSensisLibor.length];
-			 } else {
-				 currentSensisOIS   = meltingMap.get("InterestRate").stream().filter(n -> n.containsKey("OIS")).findFirst().get().get("OIS");
-				 currentSensisLibor = meltingMap.get("InterestRate").stream().filter(n -> n.containsKey("Libor6m")).findFirst().get().get("Libor6m");
-			     // Melt sensis to evaluationDate
-				 currentSensisLibor = getMeltedSensitivities(exerciseTimes[lastExerciseIndex-1],evaluationTime, currentSensisLibor, "InterestRate");
-			 }
-		     
-		     RandomVariableInterface pathExerciseTimes = ((BermudanSwaption)product).getLastValuationExerciseTime();
-			 
-			 if(sensitivityMode == SensitivityMode.LinearOnBuckets) swapSensisLibor = getSensitivitiesOnBuckets(swapSensisLibor, "InterestRate", null);
-			 
-			 for(int i=0;i<periodNotional.length;i++) {
-				 // Get sensis only on paths on which we have exercised
-				 swapSensisLibor[i] = swapSensisLibor[i].barrier(new RandomVariable(pathExerciseTimes.sub(evaluationTime+0.0001)), new RandomVariable(0.0), swapSensisLibor[i]);
-				 if(lastExerciseTime!=exerciseTimes[0]) swapSensisLibor[i] = swapSensisLibor[i].barrier(new RandomVariable(pathExerciseTimes.sub(previousExerciseTime+0.0001)), swapSensisLibor[i], new RandomVariable(0.0));
-				 currentSensisLibor[i] = lastExerciseTime==exerciseTimes[0] ? swapSensisLibor[i] : currentSensisLibor[i].add(swapSensisLibor[i]);
-			 }
-			 
- 			 // Create a new element of the curveIndex List for given risk class		         
-	         HashMap<String,RandomVariableInterface[]> curveIndexNameSensiMap = new HashMap<String,RandomVariableInterface[]>();
-	         curveIndexNameSensiMap.put("Libor6m",swapSensisLibor);
-	         //curveIndexNameSensiMap.put("OIS",swapSensisOIS);
-	         List<HashMap<String/*curveIndexName*/,RandomVariableInterface[]>> list = new ArrayList<HashMap<String/*curveIndexName*/,RandomVariableInterface[]>>();
-	         list.add(curveIndexNameSensiMap);
-	         meltingMap.put("InterestRate", list);
-	         
-		  }
-		  return initialMeltingTime;
-	  }
-	
-	  
+	    
 	  private void resetSwaptionGradient(double evaluationTime) throws CalculationException{
 		  double exerciseDate = ((Swaption)classifiedProduct.getProduct()).getExerciseDate();
           if(((Swaption) classifiedProduct.getProduct()).getDeliveryType()=="Physical" && evaluationTime>=exerciseDate && lastEvaluationTime < exerciseDate){
@@ -336,8 +232,14 @@ public class SIMMPortfolio extends AbstractLIBORMonteCarloProduct{
 		  if(gradientOfProduct==null) setGradient(model,0.0);
 		  return this.gradientOfProduct;
 	    }
+	  
+	  public void setSensitivityInterpolation() throws CalculationException{
+		  this.sensitivityInterpolation = new SensitivityInterpolation(this);
+	  }
 
   }// end class PortfolioInstrument
+	
+	
 	
 	/**Construct a <code> SIMMPortfolio </code> 
 	 * 
@@ -349,22 +251,24 @@ public class SIMMPortfolio extends AbstractLIBORMonteCarloProduct{
 			             String calculationCurrency,
 			             SensitivityMode sensiMode,
 			             WeightToLiborAdjustmentMethod method,
-			             double sensiMeltingResetStep){
+			             double sensiResetStep){
 
 		  this.portfolioProducts = createPortfolioInstruments(classifiedProducts);
 		  this.calculationCCY = calculationCurrency;
 		  this.sensitivityMode = sensiMode;
 		  this.liborWeightMethod = method;
-		  this.sensiMeltingResetStep = sensiMeltingResetStep;
+		  this.sensiResetStep = sensiResetStep;
 	}
 	
 	
 	@Override
 	public RandomVariableInterface getValue(double evaluationTime, LIBORModelMonteCarloSimulationInterface model) throws CalculationException{
 		if(this.model==null || !model.equals(this.model)) { // At inception (t=0) or if the model is reset
-			this.model = model; //...the (new) model must be set
-			clearPortfolio();    //...the maps of classifiedSIMMProducts are reset to null (they have to be recalculated under the new model)
-	        if(liborWeightMethod == WeightToLiborAdjustmentMethod.Constant) getConstantWeightAdjustment(model);
+			this.model = model;      //...the (new) model must be set
+			clearPortfolio();        //...the maps of classifiedSIMMProducts are reset to null (they have to be recalculated under the new model)
+	        setPortfolioGradients(); // Set the gradient of each PortfolioProduct
+	        setPortfolioInterpolationSchemes();
+			if(liborWeightMethod == WeightToLiborAdjustmentMethod.Constant) getConstantWeightAdjustment(model);
 			this.SIMMScheme= new SIMMSchemeMain(this,this.calculationCCY);
 		}
 		return SIMMScheme.getValue(evaluationTime);
@@ -440,7 +344,7 @@ public class SIMMPortfolio extends AbstractLIBORMonteCarloProduct{
 	 * @param riskFactorDays The number of days corresponding to the sensitivities
 	 * @return The sensitivities on the SIMM maturity buckets
 	 */
-	private RandomVariableInterface[] getSensitivitiesOnBuckets(RandomVariableInterface[] sensitivities, String riskClass, int[] riskFactorDays){
+	public RandomVariableInterface[] getSensitivitiesOnBuckets(RandomVariableInterface[] sensitivities, String riskClass, int[] riskFactorDays){
 		//rebucketing to SIMM structure(buckets: 2w, 1m, 3m, 6m, 1y, 2y, 3y, 5y, 10y, 15y, 20y, 30y)	
 		int[] riskFactorsSIMM = riskClass=="InterestRate" ? new int[] {14, 30, 90, 180, 365, 730, 1095, 1825, 3650, 5475, 7300, 10950} : /*Credit*/ new int[] {365, 730, 1095, 1825, 3650};	
 		RandomVariableInterface[] deltaSIMM = new RandomVariableInterface[riskFactorsSIMM.length];
@@ -781,56 +685,7 @@ public class SIMMPortfolio extends AbstractLIBORMonteCarloProduct{
 	}
 	
 	
-	
-	
-	
-	
-	
-	
-	
-	/**Linear melting of the sensitivities given on the SIMM Buckets or - not mapped to SIMM Bucket i.e. on the LiborPeriodDiscretization
-	 * 
-	 * @param initialMeltingTime The time at which the melting should start, i.e. time zero
-	 * @param evaluationTime The time at which the melted sensitivites are calculated
-	 * @param sensitivities The sensitivities on SIMM buckets or LiborPeriodDiscretization to be melted
-	 * @param riskClass The SIMM risk class of the product whose sensitivities we consider
-	 * @return The melted sensitivities
-	 */
-	private RandomVariableInterface[] getMeltedSensitivities(double initialMeltingTime, double evaluationTime, RandomVariableInterface[] sensitivities, String riskClass){
-		if(sensitivityMode==SensitivityMode.LinearOnBuckets){
-		   int[] riskFactorsSIMM = riskClass=="InterestRate" ? new int[] {14, 30, 90, 180, 365, 730, 1095, 1825, 3650, 5475, 7300, 10950} : /*Credit*/ new int[] {365, 730, 1095, 1825, 3650};	
-		   // If sensitivities are given on LiborPeriodDiscretization, map them on SIMM Buckets 
-		   if(sensitivities.length!=riskFactorsSIMM.length) sensitivities = getSensitivitiesOnBuckets(sensitivities, riskClass, null); 
-		   // Get new riskFactor times
-		   int[] riskFactorDays = Arrays.stream(riskFactorsSIMM).filter(n -> n > (int)Math.round(365*(evaluationTime-initialMeltingTime))).map(n -> n-(int)Math.round(365*(evaluationTime-initialMeltingTime))).toArray();
-	       // Find first bucket later than evaluationTime
-		   int firstIndex = IntStream.range(0, riskFactorsSIMM.length)
-		                          .filter(i -> riskFactorsSIMM[i]>(int)Math.round(365*(evaluationTime-initialMeltingTime))).findFirst().getAsInt();
-		   //Calculate melted sensitivities
-		   RandomVariableInterface[] meltedSensis = new RandomVariableInterface[sensitivities.length-firstIndex];
-		   for(int i=0;i<meltedSensis.length;i++){
-			   meltedSensis[i]=sensitivities[i+firstIndex].mult(1.0-(double)Math.round(365*(evaluationTime-initialMeltingTime))/(double)riskFactorsSIMM[i+firstIndex]);
-		   }
-		   return getSensitivitiesOnBuckets(meltedSensis, riskClass, riskFactorDays);       
-	       
-		} else { // SensitivityMode.LinearOnLiborPeriodDiscretization
-	
-		   TimeDiscretizationInterface times = model.getLiborPeriodDiscretization();
-	       // Find first bucket later than evaluationTime
-		   int firstIndex = times.getTimeIndexNearestGreaterOrEqual(evaluationTime-initialMeltingTime);
-		   if(evaluationTime-initialMeltingTime==0) firstIndex=1;
-		   //Calculate melted sensitivities
-		   RandomVariableInterface[] meltedSensis = new RandomVariableInterface[sensitivities.length-firstIndex+1];
-		   for(int i=0;i<meltedSensis.length;i++){
-			  double time = (i+firstIndex)*model.getLiborPeriodDiscretization().getTimeStep(0);
-			  meltedSensis[i]=sensitivities[i+firstIndex-1].mult(1.0-(evaluationTime-initialMeltingTime)/time);
-		   }
-		   return getSensitivitiesOnBuckets(meltedSensis, riskClass, null);  
-	    }
-	}
-	
-	
-	
+
 
 	
 	//----------------------------------------------------------------------------------------------------------------------------------
@@ -1026,13 +881,25 @@ public class SIMMPortfolio extends AbstractLIBORMonteCarloProduct{
 		this.riskWeightToLiborAdjustments=null;
 	}
 	
+	private void setPortfolioGradients() throws CalculationException{
+		for(int i=0;i<portfolioProducts.length;i++){
+			portfolioProducts[i].setGradient(model, 0.0);
+		}
+	}
+	
+	private void setPortfolioInterpolationSchemes() throws CalculationException{
+		for(int i=0;i<portfolioProducts.length;i++){
+			portfolioProducts[i].setSensitivityInterpolation();
+		}
+	}
+	
 	public PortfolioInstrument[] getProducts(){
 		return portfolioProducts;
 	}
 	
 	private PortfolioInstrument[] createPortfolioInstruments(SIMMClassifiedProduct[] classifiedProducts){
 		PortfolioInstrument[] products = new PortfolioInstrument[classifiedProducts.length];
-		for(int i=0;i<products.length;i++) products[i]= new PortfolioInstrument(classifiedProducts[i]);
+		for(int i=0;i<products.length;i++) products[i]= new PortfolioInstrument(classifiedProducts[i], this);
 		return products;
 	}
 	
@@ -1041,6 +908,18 @@ public class SIMMPortfolio extends AbstractLIBORMonteCarloProduct{
 			this.riskWeightToLiborAdjustments = getLiborSwapSensitivities(0.0 /*evaluationTime*/, model);
 		}
 		return riskWeightToLiborAdjustments;
+	}
+	
+	public double getSensiResetStep(){
+		return this.sensiResetStep;
+	}
+	
+	public SensitivityMode getSensitivityMode(){
+		return this.sensitivityMode;
+	}
+	
+	public LIBORModelMonteCarloSimulationInterface getModel(){
+		return this.model;
 	}
 
 	

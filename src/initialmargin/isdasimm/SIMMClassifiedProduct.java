@@ -2,6 +2,13 @@ package initialmargin.isdasimm;
 
 import initialmargin.isdasimm.changedfinmath.products.AbstractLIBORMonteCarloProduct;
 
+/** This class wraps an <code> AbstractLIBORMonteCarloProduct </code> into a product classified according 
+ *  to the SIMM methodology requirement. All products to be considered for MVA calculation with the SIMM model
+ *  must be classified by generating an object of this class.
+ * 
+ * @author Mario Viehmann
+ *
+ */
 public class SIMMClassifiedProduct {
 	
 	    private AbstractLIBORMonteCarloProduct product; 
