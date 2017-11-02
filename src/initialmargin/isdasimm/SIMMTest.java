@@ -69,7 +69,7 @@ public class SIMMTest {
   
    	   
    	   // Create Products
-  	   double     exerciseTime  = 2.0;	// Exercise date
+  	   double     exerciseTime  = 6.0;	// Exercise date
   	   double     constantSwapRate = 0.01;
   	   int        numberOfPeriods = 8;
   	   double     notional        = 100;
@@ -105,20 +105,23 @@ public class SIMMTest {
 	   SIMMClassifiedProduct product2 = new SIMMClassifiedProduct(swap2,"RatesFX",new String[] {"InterestRate"}, new String[] {"OIS","Libor6m"},"EUR",null,false, false);
 	   
 	   // Create SIMMPortfolios
-	   double sensiResetStep = 50.0; // Time step at which Sensis are reset for melting: if > exercise Date we have no reset
+	   double sensiResetStep = 2.0; // Time step at which Sensis are reset for melting: if > exercise Date we have no reset
 	   SIMMPortfolio portfolioST = new SIMMPortfolio(new SIMMClassifiedProduct[] {product1},"EUR",
 			                                         SensitivityMode.Stochastic,
 			                                         WeightToLiborAdjustmentMethod.Constant, 0.0);
-	   SIMMPortfolio portfolioLB = new SIMMPortfolio(new SIMMClassifiedProduct[] {product1},"EUR",
-                                                     SensitivityMode.LinearOnBuckets,
+	   SIMMPortfolio portfolioIP = new SIMMPortfolio(new SIMMClassifiedProduct[] {product1},"EUR",
+                                                     SensitivityMode.Interpolation,
                                                      WeightToLiborAdjustmentMethod.Constant, sensiResetStep);
+	   SIMMPortfolio portfolioLB = new SIMMPortfolio(new SIMMClassifiedProduct[] {product1},"EUR",
+			   										 SensitivityMode.LinearMelting,
+			   										 WeightToLiborAdjustmentMethod.Constant, 50 /*sensiResetStep ( -> no reset)*/);
 	   SIMMPortfolio portfolioLL = new SIMMPortfolio(new SIMMClassifiedProduct[] {product1},"EUR",
-                                                     SensitivityMode.LinearOnLiborPeriodDiscretization,
+                                                     SensitivityMode.LinearMeltingOnLiborBuckets,
                                                      WeightToLiborAdjustmentMethod.Constant, sensiResetStep);
 
 	   // Perform calculations
 	   double finalIMTime=exerciseTime+0.5*numberOfPeriods;
-	   double timeStep = 0.05;
+	   double timeStep = 0.1;
 	
 	   //System.out.println("Survival Probabilities");
 	   //for(int i=0;i<finalIMTime/0.125;i++) System.out.println(portfolioLM.getProducts()[0].getSurvivalProbability(i*0.125,model,true));
@@ -133,28 +136,39 @@ public class SIMMTest {
 	   System.out.println("Time with Melting on Buckets: " + formatterTime.format((timeLBEnd-timeLBStart)/1000.0)+"s");
 	      
 	   // 2) Melt sensis linearly on LiborPeriodDiscretization
-  	   double[] valuesLL = new double[(int)(finalIMTime/timeStep)];
-  	  
-  	   long timeLLStart = System.currentTimeMillis();
-	     for(int i=0;i<finalIMTime/timeStep;i++) valuesLL[i] = portfolioLL.getValue(i*timeStep, model).getAverage();
-	   long timeLLEnd = System.currentTimeMillis();
+//  	   double[] valuesLL = new double[(int)(finalIMTime/timeStep)];
+//  	  
+//  	   long timeLLStart = System.currentTimeMillis();
+//	     for(int i=0;i<finalIMTime/timeStep;i++) valuesLL[i] = portfolioLL.getValue(i*timeStep, model).getAverage();
+//	   long timeLLEnd = System.currentTimeMillis();
   	
-	   System.out.println("Time with Melting on LiborPeriodDiscretization: " + formatterTime.format((timeLLEnd-timeLLStart)/1000.0)+"s");
+//	   System.out.println("Time with Melting on LiborPeriodDiscretization: " + formatterTime.format((timeLLEnd-timeLLStart)/1000.0)+"s");
 	   
-	   // 3)Calculate forward sensis by AAD at each time point
+	   
+	   // 3) Interpolate Sensitivities
+	   double[] valuesIP = new double[(int)(finalIMTime/timeStep)];
+	  
+	   long timeIPStart = System.currentTimeMillis();
+    //      for(int i=0;i<finalIMTime/timeStep;i++) valuesIP[i] = portfolioIP.getValue(i*timeStep, model).getAverage();
+       long timeIPEnd = System.currentTimeMillis();
+	
+       System.out.println("Time with Interpolation: " + formatterTime.format((timeIPEnd-timeIPStart)/1000.0)+"s");
+	   
+       
+	   // 4)Calculate forward sensis by AAD at each time point
 	   double[] valuesST = new double[(int)(finalIMTime/timeStep)];
 	   
 	   long timeSTStart = System.currentTimeMillis();
-	     for(int i=0;i<finalIMTime/timeStep;i++) valuesST[i] = portfolioST.getValue(i*timeStep, model).getAverage();
+	//     for(int i=0;i<finalIMTime/timeStep;i++) valuesST[i] = portfolioST.getValue(i*timeStep, model).getAverage();
 	   long timeSTEnd = System.currentTimeMillis();
 	   
 	   System.out.println("Time with calculation of AAD sensis at each time point: " + formatterTime.format((timeSTEnd-timeSTStart)/1000.0)+"s");
 
 
-	   System.out.println("IM Linear Melting on Buckets" + "\t" + "IM Linear Melting on LiborPeriodDiscretization" + "\t" + "IM Forward AAD Sensis");
+	   System.out.println("IM Linear Melting on Buckets" + "\t" + "IM Interpolation" + "\t" + "IM Forward AAD Sensis");
        
 	   for(int i=0;i<finalIMTime/timeStep;i++){
-    	   System.out.println(valuesLB[i] + "\t" + valuesLL[i] + "\t" + valuesST[i]);
+    	   System.out.println(valuesLB[i] + "\t" + valuesIP[i] + "\t" + valuesST[i]);
        }
 	   
 	   
@@ -181,7 +195,7 @@ public class SIMMTest {
 		 * Create a simulation time discretization
 		 */
 		double lastTime	= 12.0;
-		double dt		= 0.05;
+		double dt		= 0.125;
 
 		TimeDiscretization timeDiscretization = new TimeDiscretization(0.0, (int) (lastTime / dt), dt);
       
