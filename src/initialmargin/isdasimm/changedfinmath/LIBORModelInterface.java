@@ -49,6 +49,16 @@ public interface LIBORModelInterface extends TermStructureModelInterface {
 	 * @return The index corresponding to a given time (interpretation is start of period)
 	 */
 	int getLiborPeriodIndex(double time);
+	
+	void clearNumeraireAdjustmentCache();
+	
+	Map<Double, RandomVariableInterface> getNumeraireAdjustmentMap();
+	
+	RandomVariableInterface getNumeraireAdjustment(double time) throws CalculationException;
+	
+	RandomVariableInterface getForwardBondLibor(double T, double t) throws CalculationException;
+
+	RandomVariableInterface getForwardBondOIS(double T, double t) throws CalculationException;
 
 	/**
 	 * Create a new object implementing LIBORModelInterface, using the new data.
@@ -59,4 +69,6 @@ public interface LIBORModelInterface extends TermStructureModelInterface {
 	 */
 	@Override
 	LIBORModelInterface getCloneWithModifiedData(Map<String, Object> dataModified) throws CalculationException;
+
+	
 }

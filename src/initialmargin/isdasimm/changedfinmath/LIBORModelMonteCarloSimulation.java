@@ -146,6 +146,31 @@ public class LIBORModelMonteCarloSimulation implements LIBORModelMonteCarloSimul
 	public RandomVariableInterface getNumeraire(double time) throws CalculationException {
 		return model.getNumeraire(time);
 	}
+	
+	@Override
+	public void clearNumeraireAdjustmentCache(){
+		model.clearNumeraireAdjustmentCache();
+	}
+	
+	@Override 
+	public Map<Double, RandomVariableInterface> getNumeraireAdjustmentMap(){
+		return model.getNumeraireAdjustmentMap();
+	}
+	
+	@Override
+	public RandomVariableInterface getNumeraireAdjustment(double time) throws CalculationException{
+		return model.getNumeraireAdjustment(time);
+	}
+	
+	@Override
+	public RandomVariableInterface getForwardBondLibor(double T, double t) throws CalculationException{
+		return model.getForwardBondLibor(T, t);
+	}
+
+	@Override
+	public RandomVariableInterface getForwardBondOIS(double T, double t) throws CalculationException{
+		return model.getForwardBondOIS(T, t);
+	}
 
 	public LIBORModelInterface getModel() {
 		return model;
