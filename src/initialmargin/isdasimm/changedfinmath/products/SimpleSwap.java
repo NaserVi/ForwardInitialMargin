@@ -6,6 +6,7 @@
 package initialmargin.isdasimm.changedfinmath.products;
 
 import java.util.Arrays;
+import java.util.stream.IntStream;
 
 import initialmargin.isdasimm.changedfinmath.*;
 import net.finmath.exception.CalculationException;
@@ -122,6 +123,20 @@ public class SimpleSwap extends AbstractLIBORMonteCarloProduct {
 	
 	public double getNotional(){
 		return this.notional;
+	}
+	
+	public double[] getSwapRates(){
+		return this.swaprates;
+	}
+	
+	public double[] getPaymentDates(){
+		return this.paymentDates;
+	}
+	
+	public double[] getPeriodLengths(){
+		double[] periodLengths = new double[paymentDates.length];
+		periodLengths = IntStream.range(0, periodLengths.length).mapToDouble(i -> paymentDates[i]-fixingDates[i]).toArray();
+		return periodLengths;
 	}
 
 

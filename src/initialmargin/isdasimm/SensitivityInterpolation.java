@@ -174,7 +174,7 @@ public class SensitivityInterpolation {
 		   
 		   else if(product instanceof BermudanSwaption){
 			   double firstExerciseTime = ((BermudanSwaption)product).getLastValuationExerciseTime().getMin();
-			   if(evaluationTime==initialMeltingTime && lastEvaluationTime!=evaluationTime && evaluationTime <firstExerciseTime) sensiMap.clear();
+			   if(evaluationTime==initialMeltingTime && lastEvaluationTime!=evaluationTime && evaluationTime <firstExerciseTime) sensiMap.clear(); // Melting reset
 		       if(evaluationTime >= firstExerciseTime) {
 		    	   initialMeltingTime = setBermudanMeltingMapAndTime(evaluationTime, product);
 		       }
@@ -193,6 +193,7 @@ public class SensitivityInterpolation {
 	   */
 	  private double setBermudanMeltingMapAndTime(double evaluationTime, AbstractLIBORMonteCarloProduct product) throws CalculationException{
 		  double[] exerciseTimes = ((BermudanSwaption)product).getExerciseTimes();
+		  double firstExerciseTime = ((BermudanSwaption)product).getLastValuationExerciseTime().getMin();
 		  int lastExerciseIndex = new TimeDiscretization(exerciseTimes).getTimeIndexNearestLessOrEqual(evaluationTime);
 		  double lastExerciseTime = new TimeDiscretization(exerciseTimes).getTime(lastExerciseIndex);
 		  double previousExerciseTime = lastExerciseIndex==0 ? lastExerciseTime : new TimeDiscretization(exerciseTimes).getTime(lastExerciseIndex-1);
@@ -207,21 +208,25 @@ public class SensitivityInterpolation {
 			 			 
 			 // Reset Melting Maps
 			 double[] fixingDates = ((BermudanSwaption)product).getFixingDates(evaluationTime);
-		     RandomVariableInterface[] swapSensisLibor = portfolio.getAnalyticSwapSensitivities(evaluationTime, fixingDates, portfolio.getModel(),"Libor");
-			 
+			 double[] swapRates   = ((BermudanSwaption)product).getSwapRates();
+			 double[]   periodLength = ((BermudanSwaption)product).getPeriodLengths();
+		     RandomVariableInterface[] swapSensisLibor = portfolio.getAnalyticSwapSensitivities(evaluationTime, fixingDates, null, periodLength[0], portfolio.getModel(),"Libor");
+		     //RandomVariableInterface[] swapSensisOIS = portfolio.getAnalyticSwapSensitivities(evaluationTime, fixingDates, swapRates, periodLength, portfolio.getModel(),"OIS");
+		     
 		     // Multiply with notional
 		     double[] periodNotional = ((BermudanSwaption)product).getPeriodNotionals();
 		     for(int i=0;i<periodNotional.length;i++) swapSensisLibor[i] = swapSensisLibor[i].mult(periodNotional[i]);
 		     
-		     if(lastExerciseTime==exerciseTimes[0]) { // The melting map is created at the first exercise time. We need to clear it.
+		     if(lastExerciseTime==firstExerciseTime) { // The melting map is created at the first exercise time. We need to clear it.
 				 sensiMap.clear();
 				 currentSensisLibor = new RandomVariableInterface[swapSensisLibor.length];
 				 currentSensisOIS   = new RandomVariableInterface[swapSensisLibor.length];
 			 } else {
-				 currentSensisOIS   = sensiMap.get(new Double(previousExerciseTime)).get("InterestRate").stream().filter(n -> n.containsKey("OIS")).findFirst().get().get("OIS");
+				 //currentSensisOIS   = sensiMap.get(new Double(previousExerciseTime)).get("InterestRate").stream().filter(n -> n.containsKey("OIS")).findFirst().get().get("OIS");
 				 currentSensisLibor = sensiMap.get(new Double(previousExerciseTime)).get("InterestRate").stream().filter(n -> n.containsKey("Libor6m")).findFirst().get().get("Libor6m");
 			     // Melt sensis to evaluationDate
 				 currentSensisLibor = getMeltedSensitivities(exerciseTimes[lastExerciseIndex-1],evaluationTime, currentSensisLibor, "InterestRate");
+				 //currentSensisOIS   = getMeltedSensitivities(exerciseTimes[lastExerciseIndex-1],evaluationTime, currentSensisOIS, "InterestRate");
 			 }
 		     
 		     RandomVariableInterface pathExerciseTimes = ((BermudanSwaption)product).getLastValuationExerciseTime();
@@ -231,8 +236,8 @@ public class SensitivityInterpolation {
 			 for(int i=0;i<periodNotional.length;i++) {
 				 // Get sensis only on paths on which we have exercised
 				 swapSensisLibor[i] = swapSensisLibor[i].barrier(new RandomVariable(pathExerciseTimes.sub(evaluationTime+0.0001)), new RandomVariable(0.0), swapSensisLibor[i]);
-				 if(lastExerciseTime!=exerciseTimes[0]) swapSensisLibor[i] = swapSensisLibor[i].barrier(new RandomVariable(pathExerciseTimes.sub(previousExerciseTime+0.0001)), swapSensisLibor[i], new RandomVariable(0.0));
-				 currentSensisLibor[i] = lastExerciseTime==exerciseTimes[0] ? swapSensisLibor[i] : currentSensisLibor[i].add(swapSensisLibor[i]);
+				 if(lastExerciseTime!=firstExerciseTime) swapSensisLibor[i] = swapSensisLibor[i].barrier(new RandomVariable(pathExerciseTimes.sub(previousExerciseTime+0.0001)), swapSensisLibor[i], new RandomVariable(0.0));
+				 currentSensisLibor[i] = lastExerciseTime==firstExerciseTime ? swapSensisLibor[i] : currentSensisLibor[i].add(swapSensisLibor[i]);
 			 }
 			 
 			 // Create a new element of the curveIndex List for given risk class		         

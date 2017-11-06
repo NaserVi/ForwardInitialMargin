@@ -215,5 +215,13 @@ public class BermudanSwaption extends AbstractLIBORMonteCarloProduct {
 		return this.periodNotionals;
 	}
 	
+	public double[] getSwapRates(){
+		return this.swaprates;
+	}
+	
+	public double[] getPeriodLengths(){
+		return this.periodLengths;
+	}
+	
 	
 }
