@@ -12,6 +12,7 @@ import java.text.NumberFormat;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -104,6 +105,8 @@ public class Curve extends AbstractCurve implements Serializable, Cloneable {
 		/** Interpolation is performed on the log of the point values divided by their respective time, i.e. log(value(t))/t **/
 		LOG_OF_VALUE_PER_TIME
 	}
+	
+	private HashMap<Double, RandomVariableInterface> originalPointMap = new HashMap<>();
 
 	private static class Point implements Comparable<Point>, Serializable {
 		private static final long serialVersionUID = 8857387999991917430L;
@@ -315,6 +318,9 @@ public class Curve extends AbstractCurve implements Serializable, Cloneable {
 	@Override
 	public RandomVariableInterface getValue(AnalyticModelInterface model, double time)
 	{
+		
+		if(originalPointMap.containsKey(time)) return originalPointMap.get(time);
+		
 		Map<Double, RandomVariableInterface> curveCache = curveCacheReference != null ? curveCacheReference.get() : null;
 		if(curveCache == null) {
 			curveCache = new ConcurrentHashMap<Double, RandomVariableInterface>();
@@ -360,6 +366,9 @@ public class Curve extends AbstractCurve implements Serializable, Cloneable {
 	 * @param isParameter If true, then this point is served via {@link #getParameter()} and changed via {@link #getCloneForParameter(RandomVariableInterface[])}, i.e., it can be calibrated.
 	 */
 	protected void addPoint(double time, RandomVariableInterface value, boolean isParameter) {
+		// originalPointMap: Contains the values as given in the curve constructor regardless of the interpolation entity
+		originalPointMap.put(time, value);
+			
 		synchronized (rationalFunctionInterpolationLazyInitLock) {
 			if(interpolationEntity == InterpolationEntity.LOG_OF_VALUE_PER_TIME && time == 0) {
 				boolean containsOne = false; int index=0;
