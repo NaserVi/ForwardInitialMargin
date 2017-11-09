@@ -157,7 +157,7 @@ public class SIMMTestAADold {
 		SIMM_StochasticWeightAdj.setIgnoreDiscountCurve(false); // Takes much longer if false. Different implementation / method required ?!
 		SIMM_ConstantWeightAdj.setIgnoreDiscountCurve(false);
 		
-		double finalTime = 1.0; // The last time of the IM exposure to be calculated 
+		double finalTime = 5.0; // The last time of the IM exposure to be calculated 
 		double timeStep  = 0.125;
 		
 		// Perform Calculations

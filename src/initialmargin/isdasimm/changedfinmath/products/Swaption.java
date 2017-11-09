@@ -155,9 +155,11 @@ public class Swaption extends AbstractLIBORMonteCarloProduct {
 
 			// Get random variables - note that this is the rate at simulation time = exerciseDate
 			RandomVariableInterface libor	= model.getLIBOR(exerciseDate, fixingDate, paymentDate);
+			double test2 = libor.getAverage();
 
 			// Calculate payoff
 			RandomVariableInterface payoff = libor.sub(swaprate).mult(periodLength).mult(notional);
+			double test3 = payoff.getAverage();
 
 			// Calculated the adjustment for the discounting curve, assuming a deterministic basis
 			// @TODO: Need to check if the model fulfills the assumptions (all models implementing the interface currently do so).
@@ -187,6 +189,7 @@ public class Swaption extends AbstractLIBORMonteCarloProduct {
 		 */
 		values = valueOfSwapAtExerciseDate.floor(0.0);
 		RandomVariableInterface	numeraire				= model.getNumeraire(exerciseDate);
+		double test = numeraire.getAverage();
 		RandomVariableInterface	monteCarloProbabilities	= model.getMonteCarloWeights(exerciseDate);
 		values = values.div(numeraire).mult(monteCarloProbabilities);
 
