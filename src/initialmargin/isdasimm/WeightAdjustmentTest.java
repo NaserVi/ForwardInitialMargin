@@ -60,7 +60,7 @@ public class WeightAdjustmentTest {
  					                                                              new double[] {0.02, 0.02, 0.02, 0.02, 0.02},
  					                                                              0.5/* tenor / period length */);
  					
-     	 LIBORModelMonteCarloSimulationInterface model = SIMMTest.createLIBORMarketModel(randomVariableFactory,numberOfPaths, numberOfFactors, 
+     	 LIBORModelMonteCarloSimulationInterface model = SIMMTest.createLIBORMarketModel(false,randomVariableFactory,numberOfPaths, numberOfFactors, 
      				                                                            discountCurve,
      				                                                            forwardCurve,0.0 /* Correlation */);
      	 
@@ -74,7 +74,7 @@ public class WeightAdjustmentTest {
                                                                                        new double[] {0.02, 0.02, 0.02, 0.02, 0.02},
                                                                                        0.5/* tenor / period length */);
 
-         LIBORModelMonteCarloSimulationInterface model2 = SIMMTest.createLIBORMarketModel(randomVariableFactory,numberOfPaths, numberOfFactors, 
+         LIBORModelMonteCarloSimulationInterface model2 = SIMMTest.createLIBORMarketModel(false, randomVariableFactory,numberOfPaths, numberOfFactors, 
                                                                                  discountCurveSteep,
                                                                                  forwardCurveSteep, 0.0 /* Correlation */);
         

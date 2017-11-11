@@ -11,8 +11,11 @@ import initialmargin.isdasimm.SIMMPortfolio.SensitivityMode;
 import initialmargin.isdasimm.SIMMPortfolio.WeightToLiborAdjustmentMethod;
 import initialmargin.isdasimm.changedfinmath.LIBORMarketModel;
 import initialmargin.isdasimm.changedfinmath.LIBORMarketModelInterface;
+import initialmargin.isdasimm.changedfinmath.LIBORMarketModelWithTenorRefinement;
 import initialmargin.isdasimm.changedfinmath.LIBORModelMonteCarloSimulation;
 import initialmargin.isdasimm.changedfinmath.LIBORModelMonteCarloSimulationInterface;
+import initialmargin.isdasimm.changedfinmath.TermStructureModelInterface;
+import initialmargin.isdasimm.changedfinmath.TermStructureModelMonteCarloSimulation;
 import initialmargin.isdasimm.changedfinmath.products.AbstractLIBORMonteCarloProduct;
 import initialmargin.isdasimm.changedfinmath.products.BermudanSwaption;
 import initialmargin.isdasimm.changedfinmath.products.SimpleSwap;
@@ -31,18 +34,23 @@ import net.finmath.marketdata.model.curves.DiscountCurveFromForwardCurve;
 import net.finmath.marketdata.model.curves.ForwardCurve;
 import net.finmath.montecarlo.AbstractRandomVariableFactory;
 import net.finmath.montecarlo.BrownianMotionInterface;
+import net.finmath.montecarlo.RandomVariable;
 import net.finmath.montecarlo.RandomVariableFactory;
 import net.finmath.montecarlo.automaticdifferentiation.backward.RandomVariableDifferentiableAAD;
 import net.finmath.montecarlo.automaticdifferentiation.backward.RandomVariableDifferentiableAADFactory;
+//import net.finmath.montecarlo.interestrate.TermStructureModelInterface;
 import net.finmath.montecarlo.interestrate.modelplugins.LIBORCorrelationModelExponentialDecay;
 import net.finmath.montecarlo.interestrate.modelplugins.LIBORCovarianceModelFromVolatilityAndCorrelation;
 import net.finmath.montecarlo.interestrate.modelplugins.LIBORVolatilityModel;
 import net.finmath.montecarlo.interestrate.modelplugins.LIBORVolatilityModelFromGivenMatrix;
+import net.finmath.montecarlo.interestrate.modelplugins.TermStructCovarianceModelFromLIBORCovarianceModelParametric;
 import net.finmath.montecarlo.process.ProcessEulerScheme;
 import net.finmath.stochastic.RandomVariableInterface;
 import net.finmath.time.ScheduleGenerator;
 import net.finmath.time.ScheduleInterface;
 import net.finmath.time.TimeDiscretization;
+import net.finmath.time.TimeDiscretization.ShortPeriodLocation;
+import net.finmath.time.TimeDiscretizationInterface;
 import net.finmath.time.businessdaycalendar.BusinessdayCalendarExcludingTARGETHolidays;
 
 
@@ -62,7 +70,7 @@ public class SIMMTest {
 					                                                             new double[] {0.02, 0.02, 0.02, 0.02, 0.02},
 					                                                             0.5/* tenor / period length */);
 					
-   	   LIBORModelMonteCarloSimulationInterface model = createLIBORMarketModel(randomVariableFactory,500/*numberOfPaths*/, 1 /*numberOfFactors*/, 
+   	   LIBORModelMonteCarloSimulationInterface model = createLIBORMarketModel(false,randomVariableFactory,1000/*numberOfPaths*/, 1 /*numberOfFactors*/, 
    				                                                              discountCurve,
    				                                                              forwardCurve,0.0 /* Correlation */);
    	   
@@ -70,10 +78,12 @@ public class SIMMTest {
    	   
    
    	   // Create Products
-  	   double     exerciseTime     = 0.0;	// Exercise date
-  	   double     constantSwapRate = 0.02;
-  	   int        numberOfPeriods  = 6;
+  	   double     exerciseTime     = 5.0;	// Exercise date
+  	   double     constantSwapRate = 0.03;
+  	   int        numberOfPeriods  = 8;
   	   double     notional         = 100;
+  	   
+  	   System.out.println(model.getLIBOR(5, 5).get(0));
   	   
   	   double[]   fixingDates     = new double[numberOfPeriods];
   	   double[]   paymentDates    = new double[numberOfPeriods];
@@ -89,20 +99,22 @@ public class SIMMTest {
   	   Arrays.fill(periodNotionals, notional);
   	   Arrays.fill(swapRates, constantSwapRate); 
   	   Arrays.fill(isPeriodStartDateExerciseDate, false);
-  	   isPeriodStartDateExerciseDate[0]=true;
-  	   //isPeriodStartDateExerciseDate[2]=true;
-  	   isPeriodStartDateExerciseDate[4]=true;
-//  	   isPeriodStartDateExerciseDate[6]=true;
+//  	   isPeriodStartDateExerciseDate[0]=true;
+//  	   isPeriodStartDateExerciseDate[4]=true;
+//  	   isPeriodStartDateExerciseDate[8]=true;
+//  	   isPeriodStartDateExerciseDate[12]=true;
   	  
   	   // Create Products
   	   AbstractLIBORMonteCarloProduct simpleSwap = new SimpleSwap(fixingDates,paymentDates,swapRates,100);
   	   AbstractLIBORMonteCarloProduct swaption   = new Swaption(exerciseTime,fixingDates,paymentDates,swapRates,100.0,"Physical");
-       AbstractLIBORMonteCarloProduct bermudan   = new BermudanSwaption(isPeriodStartDateExerciseDate,fixingDates,periodLength,paymentDates,periodNotionals, swapRates);
+       AbstractLIBORMonteCarloProduct bermudan   = new BermudanSwaption(isPeriodStartDateExerciseDate,fixingDates,periodLength,paymentDates,periodNotionals, swapRates, true);
 	   AbstractLIBORMonteCarloProduct swap =  SIMMTestAADold.createSwaps(new String[]  {"5Y"})[0];
 	   AbstractLIBORMonteCarloProduct swap2 = SIMMTestAADold.createSwaps(new String[]  {"3Y"})[0];
 	   
+	   
+	   
 	   // Classify the products 
-	   SIMMClassifiedProduct product1 = new SIMMClassifiedProduct(simpleSwap,"RatesFX",new String[] {"InterestRate"}, new String[] {"OIS","Libor6m"},"EUR",null,true,false);
+	   SIMMClassifiedProduct product1 = new SIMMClassifiedProduct(swaption,"RatesFX",new String[] {"InterestRate"}, new String[] {"OIS","Libor6m"},"EUR",null,true,false);
 	   SIMMClassifiedProduct product2 = new SIMMClassifiedProduct(swap,"RatesFX",new String[] {"InterestRate"}, new String[] {"OIS","Libor6m"},"EUR",null,false, false);
 	   
 	   // Create SIMMPortfolios
@@ -117,13 +129,11 @@ public class SIMMTest {
 	   SIMMPortfolio portfolioLB = new SIMMPortfolio(new SIMMClassifiedProduct[] {product1},"EUR",
 			   										 SensitivityMode.LinearMelting,
 			   										 WeightToLiborAdjustmentMethod.Constant, 50 /*sensiResetStep ( -> no reset)*/);
-	   SIMMPortfolio portfolioLL = new SIMMPortfolio(new SIMMClassifiedProduct[] {product1},"EUR",
-                                                     SensitivityMode.LinearMeltingOnLiborBuckets,
-                                                     WeightToLiborAdjustmentMethod.Constant, sensiResetStep);
-
 	   
+
+	  // System.out.println("test " + portfolioST.getValue(0.0,model).getAverage());
 	   // Perform calculations
-	   double finalIMTime=exerciseTime+0.5*numberOfPeriods;
+	   double finalIMTime=exerciseTime+model.getLiborPeriodDiscretization().getTimeStep(0)*numberOfPeriods;
 	   double timeStep = 0.1;
 	
 	   //System.out.println("Survival Probabilities");
@@ -137,17 +147,7 @@ public class SIMMTest {
 	   long timeLBEnd = System.currentTimeMillis();
   	
 	   System.out.println("Time with Melting on Buckets: " + formatterTime.format((timeLBEnd-timeLBStart)/1000.0)+"s");
-	      
-//	   // 2) Melt sensis linearly on LiborPeriodDiscretization
-//	   double[] valuesLL = new double[(int)(finalIMTime/timeStep)];
-//  	  
-//       long timeLLStart = System.currentTimeMillis();
-//	     for(int i=0;i<finalIMTime/timeStep;i++) valuesLL[i] = portfolioLL.getValue(i*timeStep, model).getAverage();
-//	   long timeLLEnd = System.currentTimeMillis();
-//  	
-//	   System.out.println("Time with Melting on LiborPeriodDiscretization: " + formatterTime.format((timeLLEnd-timeLLStart)/1000.0)+"s");
-	   
-	   
+	      	   	   
 	   // 3) Interpolate Sensitivities
 	   double[] valuesIP = new double[(int)(finalIMTime/timeStep)];
 	  
@@ -175,9 +175,17 @@ public class SIMMTest {
        }
 	   
 	   
-   }
+	   
+	   
 
-	public static  LIBORModelMonteCarloSimulationInterface createLIBORMarketModel(
+	   
+	   
+   }
+   
+   
+   
+   public static  LIBORModelMonteCarloSimulationInterface createLIBORMarketModel(
+			boolean isUseTenorRefinement,
 			AbstractRandomVariableFactory randomVariableFactory,
 			int numberOfPaths, int numberOfFactors, DiscountCurve discountCurve, ForwardCurve forwardCurve, double correlationDecayParam) throws CalculationException {
 
@@ -185,7 +193,7 @@ public class SIMMTest {
 		 * Create the libor tenor structure and the initial values
 		 */
 		double liborPeriodLength	= 0.5;
-		double liborRateTimeHorzion	= 12.0;
+		double liborRateTimeHorzion	= 20.0;
 		TimeDiscretization liborPeriodDiscretization = new TimeDiscretization(0.0, (int) (liborRateTimeHorzion / liborPeriodLength), liborPeriodLength);
 
 		DiscountCurveInterface appliedDiscountCurve;
@@ -197,7 +205,7 @@ public class SIMMTest {
 		/*
 		 * Create a simulation time discretization
 		 */
-		double lastTime	= 12.0;
+		double lastTime	= 20.0;
 		double dt		= 0.1;
 
 		TimeDiscretization timeDiscretization = new TimeDiscretization(0.0, (int) (lastTime / dt), dt);
@@ -269,15 +277,34 @@ public class SIMMTest {
 		 * Create corresponding LIBOR Market Model
 		 */
 		
-		LIBORMarketModelInterface liborMarketModel = new LIBORMarketModel(liborPeriodDiscretization, null, forwardCurve, appliedDiscountCurve, randomVariableFactory, covarianceModel, calibrationItems, properties);
-
 		BrownianMotionInterface brownianMotion = new net.finmath.montecarlo.BrownianMotion(timeDiscretization, numberOfFactors, numberOfPaths, 3141 /* seed */);
 
 		ProcessEulerScheme process = new ProcessEulerScheme(brownianMotion, ProcessEulerScheme.Scheme.EULER_FUNCTIONAL);
 
-		return new LIBORModelMonteCarloSimulation(liborMarketModel, process);
+		if(!isUseTenorRefinement){
+		   LIBORMarketModelInterface liborMarketModel = new LIBORMarketModel(liborPeriodDiscretization, null, forwardCurve, appliedDiscountCurve, randomVariableFactory, covarianceModel, calibrationItems, properties);
+
+		   return new LIBORModelMonteCarloSimulation(liborMarketModel, process);
+		
+		} else {
+			
+			 TimeDiscretizationInterface liborPeriodDiscretizationFine = new TimeDiscretization(0.0, 40.0, 0.0625, ShortPeriodLocation.SHORT_PERIOD_AT_START);
+			 TimeDiscretizationInterface liborPeriodDiscretizationMedium = new TimeDiscretization(0.0, 40.0, 0.25, ShortPeriodLocation.SHORT_PERIOD_AT_START);
+			 TimeDiscretizationInterface liborPeriodDiscretizationCoarse = new TimeDiscretization(0.0, 40.0, 4.0, ShortPeriodLocation.SHORT_PERIOD_AT_START);
+			 TermStructureModelInterface liborMarketModel = new LIBORMarketModelWithTenorRefinement(
+						new TimeDiscretizationInterface[] { liborPeriodDiscretizationFine, liborPeriodDiscretizationMedium, liborPeriodDiscretizationCoarse },
+						new Integer[] { 4, 8, 200 },
+						null,
+						forwardCurve, appliedDiscountCurve, new TermStructCovarianceModelFromLIBORCovarianceModelParametric(null, covarianceModel),
+						null /*calibrationItems*/, properties);
+			return new TermStructureModelMonteCarloSimulation(liborMarketModel, process);
+		}
 	}
 	
+   
+   
+   
+   
 	
 	public static AbstractLIBORMonteCarloProduct[] createSwaps(String[] maturities){
 	    AbstractLIBORMonteCarloProduct[] swaps = new AbstractLIBORMonteCarloProduct[maturities.length];

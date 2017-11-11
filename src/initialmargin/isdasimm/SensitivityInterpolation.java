@@ -7,7 +7,6 @@ import java.util.stream.IntStream;
 
 import initialmargin.isdasimm.SIMMPortfolio.PortfolioInstrument;
 import initialmargin.isdasimm.SIMMPortfolio.SensitivityMode;
-import initialmargin.isdasimm.changedfinmath.LIBORModelMonteCarloSimulation;
 import initialmargin.isdasimm.changedfinmath.LIBORModelMonteCarloSimulationInterface;
 import initialmargin.isdasimm.changedfinmath.products.AbstractLIBORMonteCarloProduct;
 import initialmargin.isdasimm.changedfinmath.products.BermudanSwaption;
@@ -73,7 +72,7 @@ public class SensitivityInterpolation {
 		switch(mode){
 		
 		   case LinearMelting:
-			   
+			    
 			    HashMap<Double /*time*/,HashMap<String/*RiskClass*/,List<HashMap<String/*curveIndexName*/,RandomVariableInterface[]>>>> sensiCache = (product.getProduct() instanceof BermudanSwaption && evaluationTime > ((BermudanSwaption)product.getProduct()).getLastValuationExerciseTime().getMin()) ? this.bermudanSwapSensiMap : this.sensiMap;
 		        
 		        double initialMeltingTime = getInitialMeltingTime(evaluationTime);
@@ -89,6 +88,7 @@ public class SensitivityInterpolation {
 		        	// of the sensis on the not-yet-exercised paths between two adjacent exercise times
 		        	RandomVariableInterface[] sensisNotExercisedPaths = getSensitivityInterpolation(riskClass, curveIndexName, evaluationTime, model);
 		        	for(int i=0; i < maturityBucketSensis.length; i++) maturityBucketSensis[i] = maturityBucketSensis[i].add(sensisNotExercisedPaths[i]);
+		        	
 		        }
 		            	
 		        break;
@@ -267,7 +267,7 @@ public class SensitivityInterpolation {
 					 swapSensisLibor[i] = swapSensisLibor[i].barrier(new RandomVariable(pathExerciseTimes.sub(previousExerciseTime+0.0001)), swapSensisLibor[i], new RandomVariable(0.0));
 					 swapSensisOIS[i] = swapSensisOIS[i].barrier(new RandomVariable(pathExerciseTimes.sub(previousExerciseTime+0.0001)), swapSensisOIS[i], new RandomVariable(0.0));
 				 }
-				 // 
+				 
 				 meltedSensisLibor[i] = lastExerciseTime==firstExerciseTime ? swapSensisLibor[i] : meltedSensisLibor[i].add(swapSensisLibor[i]);
 				 meltedSensisOIS[i] = lastExerciseTime==firstExerciseTime ? swapSensisOIS[i] : meltedSensisOIS[i].add(swapSensisOIS[i]);
 			 }
@@ -330,23 +330,23 @@ public class SensitivityInterpolation {
 			   sensisOnBuckets = portfolio.getSensitivitiesOnBuckets(meltedSensis, riskClass, riskFactorDays); 
 			   break;
 		       
-		    case LinearMeltingOnLiborBuckets:
-		
-			   TimeDiscretizationInterface times = portfolio.getModel().getLiborPeriodDiscretization();
-		       
-			   // Find first bucket later than evaluationTime
-			   firstIndex = evaluationTime-initialMeltingTime==0 ? 1 : times.getTimeIndexNearestGreaterOrEqual(evaluationTime-initialMeltingTime);
-
-			   //Calculate melted sensitivities
-			   meltedSensis = new RandomVariableInterface[sensitivities.length-firstIndex+1];
-			   
-			   for(int i=0;i<meltedSensis.length;i++){
-				  double time = (i+firstIndex)*portfolio.getModel().getLiborPeriodDiscretization().getTimeStep(0);
-				  meltedSensis[i]=sensitivities[i+firstIndex-1].mult(1.0-(evaluationTime-initialMeltingTime)/time);
-			   }
-			   
-			   sensisOnBuckets = portfolio.getSensitivitiesOnBuckets(meltedSensis, riskClass, null);  
-			   break;
+//		    case LinearMeltingOnLiborBuckets:
+//		
+//			   TimeDiscretizationInterface times = portfolio.getModel().getLiborPeriodDiscretization();
+//		       
+//			   // Find first bucket later than evaluationTime
+//			   firstIndex = evaluationTime-initialMeltingTime==0 ? 1 : times.getTimeIndexNearestGreaterOrEqual(evaluationTime-initialMeltingTime);
+//
+//			   //Calculate melted sensitivities
+//			   meltedSensis = new RandomVariableInterface[sensitivities.length-firstIndex+1];
+//			   
+//			   for(int i=0;i<meltedSensis.length;i++){
+//				  double time = (i+firstIndex)*portfolio.getModel().getLiborPeriodDiscretization().getTimeStep(0);
+//				  meltedSensis[i]=sensitivities[i+firstIndex-1].mult(1.0-(evaluationTime-initialMeltingTime)/time);
+//			   }
+//			   
+//			   sensisOnBuckets = portfolio.getSensitivitiesOnBuckets(meltedSensis, riskClass, null);  
+//			   break;
 			   
 		    default:
 				  break;
@@ -370,9 +370,9 @@ public class SensitivityInterpolation {
 		  
 		  if(product instanceof Swap) finalInterpolationTime = 0;
 		   
-		  if(product instanceof Swaption) finalInterpolationTime = ((Swaption)product).getExerciseDate();
+		  if(product instanceof Swaption) finalInterpolationTime = 100;//((Swaption)product).getExerciseDate();
 			      
-		  if(product instanceof BermudanSwaption) finalInterpolationTime = 100;//((BermudanSwaption)product).getLastValuationExerciseTime().getMin();
+		  if(product instanceof BermudanSwaption) finalInterpolationTime = ((BermudanSwaption)product).getLastValuationExerciseTime().getMin();
 			
 		  return finalInterpolationTime;
 	  }
@@ -418,14 +418,16 @@ public class SensitivityInterpolation {
 				 RandomVariableInterface pathExerciseTimes = ((BermudanSwaption)product).getLastValuationExerciseTime();
 				 // exerciseIndicator: 1 if not yet exercised, 0 if already exercised at evaluationTime
 				 exerciseIndicator = new RandomVariable(1.0).barrier(new RandomVariable(pathExerciseTimes.sub(evaluationTime+0.0001)), new RandomVariable(1.0), new RandomVariable(0.0));			 
+			     // After the last exercise time the option has ceased to exist and we have only the sensis of the swaps
+				 if(evaluationTime>=exerciseTimes[exerciseTimes.length-1]) exerciseIndicator = new RandomVariable(0.0);
 			 }
 						 
 		 } else {
-		     // time of initial and final sensitivities
-			 TimeDiscretizationInterface exactSensiTimes = new TimeDiscretization(0,50,portfolio.getSensiResetStep());
+		     // time of initial and final sensitivitie
+			 TimeDiscretizationInterface exactSensiTimes = new TimeDiscretization(0,50,portfolio.getInterpolationStep());
 			 int initialIndex = exactSensiTimes.getTimeIndexNearestLessOrEqual(evaluationTime);
 			 initialTime = exactSensiTimes.getTime(initialIndex); // always smaller than finalInterpolationTime
-			 finalTime   = Math.min(getFinalInterpolationTime(),exactSensiTimes.getTime(initialIndex+1));
+			 finalTime   = Math.min(finalInterpolationTime,exactSensiTimes.getTime(initialIndex+1));
 		 }
 		 
          // Set sensiMap for intial and final time if applicable
@@ -451,14 +453,14 @@ public class SensitivityInterpolation {
          
          if(deltaT==0) return finalSensitivities;
          
-         RandomVariableInterface[] interpolatedSensis = new RandomVariable[finalSensitivities.length];
+         ArrayList<RandomVariableInterface> interpolatedSensis = new ArrayList<>();
                   
-         for(int bucketIndex=0; bucketIndex<interpolatedSensis.length; bucketIndex++){
+         for(int bucketIndex=0; bucketIndex<initialSensitivities.length; bucketIndex++){
         	 RandomVariableInterface slope = finalSensitivities[bucketIndex].sub(initialSensitivities[bucketIndex]).div(deltaT);
-        	 interpolatedSensis[bucketIndex] = initialSensitivities[bucketIndex].add(slope.mult(deltaTEval));
+        	 interpolatedSensis.add(initialSensitivities[bucketIndex].add(slope.mult(deltaTEval)));
          }
-		 
-         return interpolatedSensis;
+		 RandomVariableInterface[] result = interpolatedSensis.toArray(new RandomVariableInterface[interpolatedSensis.size()]);
+         return result;
 		 
 	  }
 

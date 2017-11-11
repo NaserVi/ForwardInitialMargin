@@ -61,4 +61,14 @@ public interface TermStructureModelInterface extends AbstractModelInterface {
 	 */
 	TermStructureModelInterface getCloneWithModifiedData(Map<String, Object> dataModified) throws CalculationException;
 
+	// Added by Mario Viehmann
+	void clearNumeraireAdjustmentCache();
+		
+	Map<Double, RandomVariableInterface> getNumeraireAdjustmentMap();
+	
+	RandomVariableInterface getNumeraireAdjustment(double time) throws CalculationException;
+		
+	RandomVariableInterface getForwardBondLibor(double T, double t) throws CalculationException;
+
+	RandomVariableInterface getForwardBondOIS(double T, double t) throws CalculationException;
 }

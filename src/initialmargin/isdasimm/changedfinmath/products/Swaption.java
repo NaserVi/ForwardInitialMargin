@@ -44,6 +44,7 @@ public class Swaption extends AbstractLIBORMonteCarloProduct {
 	private double[]   swaprates;		// Vector of strikes
 	private String deliveryType;
 	
+	private RandomVariableInterface exerciseIndicator;
 
 	private final double notional;
 	private Map<Long,RandomVariableInterface> swapGradient;
@@ -189,7 +190,7 @@ public class Swaption extends AbstractLIBORMonteCarloProduct {
 		 */
 		values = valueOfSwapAtExerciseDate.floor(0.0);
 		RandomVariableInterface	numeraire				= model.getNumeraire(exerciseDate);
-		double test = numeraire.getAverage();
+		
 		RandomVariableInterface	monteCarloProbabilities	= model.getMonteCarloWeights(exerciseDate);
 		values = values.div(numeraire).mult(monteCarloProbabilities);
 
@@ -243,7 +244,7 @@ public class Swaption extends AbstractLIBORMonteCarloProduct {
 	public Map<Long,RandomVariableInterface> getSwapGradient(LIBORModelMonteCarloSimulationInterface model) throws CalculationException{
 		if(swapGradient == null){
 		   SimpleSwap swap =  new SimpleSwap(fixingDates, paymentDates, swaprates, true, notional);
-		   RandomVariableInterface barrierIndicator = new RandomVariable(1.0).barrier(new RandomVariable(getValue(exerciseDate, model).mult(-1.0)), new RandomVariable(0.0), new RandomVariable(1.0));	   
+		   RandomVariableInterface barrierIndicator = getExerciseIndicator(model);	   
 		   RandomVariableDifferentiableInterface value = (RandomVariableDifferentiableInterface)swap.getValue(0.0, model).mult(barrierIndicator);
 		   this.swapGradient = value.getGradient();
 		   
@@ -251,8 +252,13 @@ public class Swaption extends AbstractLIBORMonteCarloProduct {
 		return swapGradient;
 	}
 	
+	public SimpleSwap getSwap(){
+		return new SimpleSwap(fixingDates, paymentDates, swaprates, true, notional);
+	}
+	
 	public RandomVariableInterface getExerciseIndicator(LIBORModelMonteCarloSimulationInterface model) throws CalculationException{
-		return new RandomVariable(1.0).barrier(new RandomVariable(getValue(exerciseDate, model).mult(-1.0)), new RandomVariable(0.0), new RandomVariable(1.0));
+		if(this.exerciseIndicator==null) this.exerciseIndicator = new RandomVariable(1.0).barrier(new RandomVariable(getValue(exerciseDate, model).mult(-1.0)), new RandomVariable(0.0), new RandomVariable(1.0));
+		return this.exerciseIndicator;
 	}
 	
 	public String getDeliveryType(){

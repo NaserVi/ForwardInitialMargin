@@ -32,6 +32,7 @@ public class BermudanSwaption extends AbstractLIBORMonteCarloProduct {
 	private final double[]	paymentDates;	                // Vector of payment dates (same length as fixing dates)
 	private final double[]	periodNotionals;				// Vector of notionals for each period
 	private final double[]	swaprates;	                 	// Vector of strikes
+	private boolean         isCallable; 
 	
 	private RandomVariableInterface lastValuationExerciseTime;
 
@@ -51,6 +52,27 @@ public class BermudanSwaption extends AbstractLIBORMonteCarloProduct {
 		this.paymentDates = paymentDates;
 		this.periodNotionals = periodNotionals;
 		this.swaprates = swaprates;
+		this.isCallable = true;
+	}
+	
+	/**
+	 * @param isPeriodStartDateExerciseDate If true, we may exercise at period start
+	 * @param fixingDates Vector of fixing dates
+	 * @param periodLength Period lengths (must have same length as fixing dates)
+	 * @param paymentDates Vector of payment dates (must have same length as fixing dates)
+	 * @param periodNotionals Period notionals (must have same length as fixing dates)
+	 * @param swaprates Vector of strikes (must have same length as fixing dates)
+	 * @param isCallable True if the Bermudan is a Multi-Callable, false if it is a Multi-Cancelable
+	 */
+	public BermudanSwaption(boolean[] isPeriodStartDateExerciseDate, double[] fixingDates, double[] periodLength, double[] paymentDates, double[] periodNotionals, double[] swaprates, boolean isCallable) {
+		super();
+		this.isPeriodStartDateExerciseDate = isPeriodStartDateExerciseDate;
+		this.fixingDates = fixingDates;
+		this.periodLengths = periodLength;
+		this.paymentDates = paymentDates;
+		this.periodNotionals = periodNotionals;
+		this.swaprates = swaprates;
+		this.isCallable = isCallable;
 	}
 
 	/**
@@ -69,7 +91,7 @@ public class BermudanSwaption extends AbstractLIBORMonteCarloProduct {
 		// After the last period the product has value zero: Initialize values to zero.
 		RandomVariableInterface values				= model.getRandomVariableForConstant(0.0);
 		RandomVariableInterface valuesUnderlying	= model.getRandomVariableForConstant(0.0);
-		RandomVariableInterface	exerciseTime	= model.getRandomVariableForConstant(fixingDates[fixingDates.length-1]+1);
+		RandomVariableInterface	exerciseTime	    = model.getRandomVariableForConstant(fixingDates[fixingDates.length-1]+1);
 
 		// Loop backward over the swap periods
 		for(int period=fixingDates.length-1; period>=0; period--)
@@ -81,7 +103,7 @@ public class BermudanSwaption extends AbstractLIBORMonteCarloProduct {
 			double swaprate		= swaprates[period];
 
 			// Get random variables - note that this is the rate at simulation time = exerciseDate
-			RandomVariableInterface	libor					= model.getLIBOR(fixingDate, fixingDate, fixingDate+periodLength);
+			RandomVariableInterface	libor = model.getLIBOR(fixingDate, fixingDate, fixingDate+periodLength);
 
 			// foreach(path) values[path] += notional * (libor.get(path) - swaprate) * periodLength / numeraire.get(path) * monteCarloProbabilities.get(path);
 			RandomVariableInterface payoff = libor.sub(swaprate).mult(periodLength).mult(notional);
@@ -92,10 +114,11 @@ public class BermudanSwaption extends AbstractLIBORMonteCarloProduct {
 			payoff = payoff.div(numeraire).mult(monteCarloProbabilities);
 
 			//			model.discount(paymentDate, values);
-			valuesUnderlying = valuesUnderlying.add(payoff);
-
+			if(isCallable)  valuesUnderlying = valuesUnderlying.add(payoff);
+            if(!isCallable) values = values.add(payoff); // calcelable
+			
 			if(isPeriodStartDateExerciseDate[period]) {
-				RandomVariableInterface triggerValuesDiscounted = values.sub(valuesUnderlying);
+				RandomVariableInterface triggerValuesDiscounted = values.sub(valuesUnderlying); // 0
 
 				// Remove foresight through condition expectation
 				ConditionalExpectationEstimatorInterface conditionalExpectationOperator = getConditionalExpectationEstimator(fixingDate, model);
@@ -106,6 +129,7 @@ public class BermudanSwaption extends AbstractLIBORMonteCarloProduct {
 				// Apply the exercise criteria
 				// foreach(path) if(valueIfExcercided.get(path) < 0.0) values[path] = 0.0;
 				values = values.barrier(triggerValues, values, valuesUnderlying);
+				
 				exerciseTime	= exerciseTime.barrier(triggerValues, exerciseTime, fixingDate);
 			}
 		}
