@@ -42,12 +42,9 @@ public class Swaption extends AbstractLIBORMonteCarloProduct {
 	private double[]   paymentDates;	// Vector of payment dates (same length as fixing dates)
 	private double[]   periodLengths;	// Vector of payment dates (same length as fixing dates)
 	private double[]   swaprates;		// Vector of strikes
-	private String deliveryType;
 	
-	private RandomVariableInterface exerciseIndicator;
-
 	private final double notional;
-	private Map<Long,RandomVariableInterface> swapGradient;
+	RandomVariableInterface exerciseIndicator;
 	
 	/**
 	 * Create a swaption.
@@ -66,7 +63,7 @@ public class Swaption extends AbstractLIBORMonteCarloProduct {
 		this.periodLengths = periodLengths;
 		this.swaprates = swaprates;
 		this.notional = notional;
-		this.deliveryType = deliveryType;
+	
 	}
 
 	/**
@@ -82,8 +79,7 @@ public class Swaption extends AbstractLIBORMonteCarloProduct {
 			double[] fixingDates,
 			double[] paymentDates,
 			double[] swaprates,
-			double notional,
-			String deliveryType) {
+			double notional) {
 		super();
 		this.exerciseDate = exerciseDate;
 		this.fixingDates = fixingDates;
@@ -91,7 +87,6 @@ public class Swaption extends AbstractLIBORMonteCarloProduct {
 		this.periodLengths = null;
 		this.swaprates = swaprates;
 		this.notional = notional;
-		this.deliveryType = deliveryType;
 	}
 
 	/**
@@ -188,6 +183,7 @@ public class Swaption extends AbstractLIBORMonteCarloProduct {
 		/*
 		 * Calculate swaption value
 		 */
+		exerciseIndicator = valueOfSwapAtExerciseDate.barrier(valueOfSwapAtExerciseDate.mult(-1.0), new RandomVariable(0.0), new RandomVariable(1.0));
 		values = valueOfSwapAtExerciseDate.floor(0.0);
 		RandomVariableInterface	numeraire				= model.getNumeraire(exerciseDate);
 		
@@ -241,29 +237,33 @@ public class Swaption extends AbstractLIBORMonteCarloProduct {
 		return this.exerciseDate;
 	}
 	
-	public Map<Long,RandomVariableInterface> getSwapGradient(LIBORModelMonteCarloSimulationInterface model) throws CalculationException{
-		if(swapGradient == null){
-		   SimpleSwap swap =  new SimpleSwap(fixingDates, paymentDates, swaprates, true, notional);
-		   RandomVariableInterface barrierIndicator = getExerciseIndicator(model);	   
-		   RandomVariableDifferentiableInterface value = (RandomVariableDifferentiableInterface)swap.getValue(0.0, model).mult(barrierIndicator);
-		   this.swapGradient = value.getGradient();
-		   
-		}
-		return swapGradient;
-	}
-	
-	public SimpleSwap getSwap(){
-		return new SimpleSwap(fixingDates, paymentDates, swaprates, true, notional);
-	}
 	
 	public RandomVariableInterface getExerciseIndicator(LIBORModelMonteCarloSimulationInterface model) throws CalculationException{
 		if(this.exerciseIndicator==null) this.exerciseIndicator = new RandomVariable(1.0).barrier(new RandomVariable(getValue(exerciseDate, model).mult(-1.0)), new RandomVariable(0.0), new RandomVariable(1.0));
 		return this.exerciseIndicator;
 	}
 	
-	public String getDeliveryType(){
-		return this.deliveryType;
+	public double[]  getFixingDates(){
+		return this.fixingDates;
+	};		
+	
+	public double[] getPaymentDates(){
+		return this.paymentDates;
+	};	
+	
+	public double[] getPeriodLengths(){
+		return this.periodLengths;
+	};
+	
+	public double[] getSwaprates(){
+		return this.swaprates;
+	};
+	
+	public double getNotional(){
+		return this.notional;
 	}
+	
+	
 
 	
 }

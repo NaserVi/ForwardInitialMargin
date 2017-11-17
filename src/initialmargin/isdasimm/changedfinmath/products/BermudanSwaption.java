@@ -235,6 +235,16 @@ public class BermudanSwaption extends AbstractLIBORMonteCarloProduct {
 		return times;
 	}
 	
+	public SimpleSwap getSwap(){
+		
+	    return new SimpleSwap(fixingDates, paymentDates, swaprates, true, periodNotionals);
+		
+	}
+	
+	public double[] getPaymentDates(){
+		return this.paymentDates;
+	}
+	
 	public double[] getPeriodNotionals(){
 		return this.periodNotionals;
 	}
@@ -249,6 +259,10 @@ public class BermudanSwaption extends AbstractLIBORMonteCarloProduct {
 
 	public double getFinalMaturity() {
 		return paymentDates[paymentDates.length-1];
+	}
+	
+	public boolean getIsCallable(){
+		return this.isCallable;
 	}
 	
 	
