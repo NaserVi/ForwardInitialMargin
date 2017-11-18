@@ -94,13 +94,13 @@ public class WeightAdjustmentTest {
    	   fixingDatesSwap = IntStream.range(0, fixingDatesSwap.length).mapToDouble(i->startTime+i*0.5).toArray();
    	   paymentDatesSwap = IntStream.range(0, paymentDatesSwap.length).mapToDouble(i->startTime+(i+1)*0.5).toArray();
    	   Arrays.fill(swapRatesSwap, constantSwapRateSwap); 
- 	   AbstractSIMMProduct SIMMSwap = new SIMMSimpleSwap(fixingDatesSwap, paymentDatesSwap, swapRatesSwap, true /*isPayFix*/,notionalSwap, new String[]{"OIS", "Libor6m"}, "EUR", false /*useAnalyticSensis*/);
+ 	   AbstractSIMMProduct SIMMSwap = new SIMMSimpleSwap(fixingDatesSwap, paymentDatesSwap, swapRatesSwap, true /*isPayFix*/,notionalSwap, new String[]{"OIS", "Libor6m"}, "EUR");
  	   
  	   // Create calculation 
- 	   SIMMSensitivityCalculation sc1 = new SIMMSensitivityCalculation(SensitivityMode.Exact, WeightMode.Constant, 0, model);
- 	   SIMMSensitivityCalculation ss1 = new SIMMSensitivityCalculation(SensitivityMode.Exact, WeightMode.Stochastic, 0, model);
- 	   SIMMSensitivityCalculation sc2 = new SIMMSensitivityCalculation(SensitivityMode.Exact, WeightMode.Constant, 0, model2);
- 	   SIMMSensitivityCalculation ss2 = new SIMMSensitivityCalculation(SensitivityMode.Exact, WeightMode.Stochastic, 0, model2);
+ 	   SIMMSensitivityCalculation sc1 = new SIMMSensitivityCalculation(SensitivityMode.Exact, WeightMode.Constant, 0, model, true);
+ 	   SIMMSensitivityCalculation ss1 = new SIMMSensitivityCalculation(SensitivityMode.Exact, WeightMode.Stochastic, 0, model, true);
+ 	   SIMMSensitivityCalculation sc2 = new SIMMSensitivityCalculation(SensitivityMode.Exact, WeightMode.Constant, 0, model2, true);
+ 	   SIMMSensitivityCalculation ss2 = new SIMMSensitivityCalculation(SensitivityMode.Exact, WeightMode.Stochastic, 0, model2, true);
 
  	  	   
 		
@@ -150,13 +150,13 @@ public class WeightAdjustmentTest {
 		// 1) Stochastic
 		double[] IM_Stochastic = new double[(int)(finalTime/timeStep)];
 		long timeStochasticStart = System.currentTimeMillis();
-		  for(int i=0;i<IM_Stochastic.length;i++) IM_Stochastic[i] = SIMMSwap.getInitialMargin(i*timeStep, model, "EUR", SensitivityMode.Exact, WeightMode.Stochastic, 0).getAverage();
+		  for(int i=0;i<IM_Stochastic.length;i++) IM_Stochastic[i] = SIMMSwap.getInitialMargin(i*timeStep, model, "EUR", SensitivityMode.Exact, WeightMode.Stochastic, 0, true).getAverage();
 		long timeStochasticEnd   = System.currentTimeMillis();
 		
 		// 2) Constant
 		double[] IM_Constant = new double[(int)(finalTime/timeStep)];
 		long timeConstantStart = System.currentTimeMillis();
-		  for(int i=0;i<IM_Constant.length;i++) IM_Constant[i] = SIMMSwap.getInitialMargin(i*timeStep, model, "EUR", SensitivityMode.Exact, WeightMode.Constant, 0).getAverage();
+		  for(int i=0;i<IM_Constant.length;i++) IM_Constant[i] = SIMMSwap.getInitialMargin(i*timeStep, model, "EUR", SensitivityMode.Exact, WeightMode.Constant, 0, true).getAverage();
 		long timeConstantEnd   = System.currentTimeMillis();
 		
 		// Printing results

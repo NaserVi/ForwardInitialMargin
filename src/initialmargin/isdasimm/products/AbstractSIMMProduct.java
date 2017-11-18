@@ -112,7 +112,7 @@ public abstract class AbstractSIMMProduct implements SIMMProductInterface {
     
     @Override
     public RandomVariableInterface getInitialMargin(double evaluationTime, LIBORModelMonteCarloSimulationInterface model, String calculationCCY) throws CalculationException{
-    	return getInitialMargin(evaluationTime, model, calculationCCY, SensitivityMode.Exact, WeightMode.Constant, 0);
+    	return getInitialMargin(evaluationTime, model, calculationCCY, SensitivityMode.Exact, WeightMode.Constant, 0, true);
     }
  	
  	public RandomVariableInterface getInitialMargin(double evaluationTime, 
@@ -120,7 +120,8 @@ public abstract class AbstractSIMMProduct implements SIMMProductInterface {
  			                                        String calculationCCY,
  			                                        SensitivityMode sensitivityMode,
  			                                        WeightMode liborWeightMode,
- 			                                        double interpolationStep) throws CalculationException{
+ 			                                        double interpolationStep,
+ 			                                        boolean isUseAnalyticSensis) throws CalculationException{
  		
  		if(evaluationTime >= getFinalMaturity()) return new RandomVariable(0.0);
  		
@@ -128,7 +129,7 @@ public abstract class AbstractSIMMProduct implements SIMMProductInterface {
  	        setModel(model); // Set the (new) model. The method setModel also clears the sensitivity maps and the gradient.
  	        this.exerciseIndicator = null;
  	        this.exactDeltaCache.clear();
- 	        this.sensitivityCalculationScheme = new SIMMSensitivityCalculation(sensitivityMode, liborWeightMode, interpolationStep, model);
+ 	        this.sensitivityCalculationScheme = new SIMMSensitivityCalculation(sensitivityMode, liborWeightMode, interpolationStep, model, isUseAnalyticSensis);
  			this.simmScheme= new SIMMSchemeMain(this,calculationCCY);
  		}
  		

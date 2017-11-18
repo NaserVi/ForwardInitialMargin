@@ -49,10 +49,11 @@ public class SIMMSensitivityCalculation extends AbstractSIMMSensitivityCalculati
      * @param liborWeightMode
      * @param interpolationStep
      * @param model
+     * @param isUseAnalyticSwapSensitivities
      */
-    public SIMMSensitivityCalculation(SensitivityMode sensitivityMode, WeightMode liborWeightMode, double interpolationStep, LIBORModelMonteCarloSimulationInterface model){
+    public SIMMSensitivityCalculation(SensitivityMode sensitivityMode, WeightMode liborWeightMode, double interpolationStep, LIBORModelMonteCarloSimulationInterface model, boolean isUseAnalyticSwapSensitivities){
             
-    	this(sensitivityMode, liborWeightMode, interpolationStep, model, true, true, true);
+    	this(sensitivityMode, liborWeightMode, interpolationStep, model, true, isUseAnalyticSwapSensitivities, true);
     	
     }
     

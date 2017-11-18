@@ -47,14 +47,13 @@ public class SIMMSimpleSwap extends AbstractSIMMProduct{
 	 * @param notional
 	 * @param curveIndexNames
 	 * @param currency
-	 * @param isUseAnalyticSensitivities
 	 */
 	public SIMMSimpleSwap(double[] fixingDates, 
 			              double[] paymentDates, 
 			              double[] swapRates, 
 			              boolean isPayFix, 
 			              double  notional, 
-			              String[] curveIndexNames, String currency, boolean isUseAnalyticSensitivities) {
+			              String[] curveIndexNames, String currency) {
 		super(productClass, riskClass, curveIndexNames, currency, null /*bucketKey*/, false /*hasOptionality*/);
 		this.swap = new SimpleSwap(fixingDates,paymentDates,swapRates,isPayFix,notional);
 		

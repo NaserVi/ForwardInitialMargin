@@ -65,11 +65,10 @@ public class SIMMSwaption extends AbstractSIMMProduct{
 	 * @param deliveryType
 	 * @param curveIndexNames
 	 * @param currency
-	 * @param isUseAnalyticSensitivities
 	 * @throws CalculationException
 	 */
     public SIMMSwaption(double exerciseDate, double[] fixingDates, double[] paymentDates, double[] swapRates, double notional, 
-				        DeliveryType deliveryType, String[] curveIndexNames, String currency, boolean isUseAnalyticSensitivities) throws CalculationException {
+				        DeliveryType deliveryType, String[] curveIndexNames, String currency) throws CalculationException {
 			
     	super(productClass, riskClass, curveIndexNames, currency, null /*bucketKey*/, true /*hasOptionality*/);
 			

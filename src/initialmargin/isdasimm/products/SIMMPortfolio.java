@@ -50,6 +50,7 @@ public class SIMMPortfolio {
 	 * @param calculationCCY The currency in which the IM is calculated
 	 * @param sensitivityMode The method to be used for sensitivity calculation (Exact, LinearMelting or Interpolation)
 	 * @param liborWeightMode The method to be used for converting the libor sensitivities to swap sensitivities (Constant or Stochastic)
+	 * @param isUseAnalyticSwapSensitivities
 	 * @return The forward initial margin for given time and model
 	 * @throws CalculationException
 	 */
@@ -58,12 +59,13 @@ public class SIMMPortfolio {
              										String calculationCCY,
              										SensitivityMode sensitivityMode,
              										WeightMode liborWeightMode,
-             										double interpolationStep) throws CalculationException{
+             										double interpolationStep,
+             										boolean isUseAnalyticSwapSensitivities) throws CalculationException{
 		
 		
 	 	if(this.model==null || !model.equals(this.model) || (sensitivityCalculationScheme!=null && (sensitivityMode !=sensitivityCalculationScheme.getSensitivityMode() || liborWeightMode !=sensitivityCalculationScheme.getWeightMode()))) { // At inception (t=0) or if the model is reset            
 	 	    
-	 	    this.sensitivityCalculationScheme = new SIMMSensitivityCalculation(sensitivityMode, liborWeightMode, interpolationStep, model);
+	 	    this.sensitivityCalculationScheme = new SIMMSensitivityCalculation(sensitivityMode, liborWeightMode, interpolationStep, model, isUseAnalyticSwapSensitivities);
 	 	    setModel(model); // Set the (new) model. The method setModel also clears the sensitivity maps and the gradient.
 	 	    this.SIMMScheme= new SIMMSchemeMain(this,calculationCCY);
 	 	}  
