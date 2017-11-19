@@ -40,6 +40,7 @@ public class SIMMSchemeIRDelta {
         for (String bucketKey : this.bucketKeys)
         {
             RandomVariableInterface K1 = this.getAggregatedSensitivityForBucket(bucketKey,atTime);
+            //System.out.println("agg. sensis = " + K1.getAverage());
             RandomVariableInterface S1 = this.getFactorS(bucketKey,K1,atTime);
             S1Contributions[i] = S1;
             KContributions[i] = K1;
@@ -157,7 +158,7 @@ public class SIMMSchemeIRDelta {
         }
         }
         // inflation and ccy risk factors
-        value=value.add(subCurveContribution[nCurves-2][0].squared()).add(subCurveContribution[nCurves-1][0].squared());
+        value=value.add(subCurveContribution[nCurves][0].squared()).add(subCurveContribution[nCurves+1][0].squared());
         //...
         return value.sqrt();
     
