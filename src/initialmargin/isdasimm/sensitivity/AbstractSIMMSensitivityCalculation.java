@@ -174,8 +174,7 @@ public abstract class AbstractSIMMSensitivityCalculation {
  		        break;
  		        
  		    default:
- 		    	break;
- 		   
+ 		    		throw new IllegalArgumentException("Unknow curve: " + curveIndexName);
  		}
  	
  		return delta;
