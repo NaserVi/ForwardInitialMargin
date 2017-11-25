@@ -144,7 +144,7 @@ public abstract class AbstractSIMMProduct implements SIMMProductInterface {
              									  String curveIndexName, // null if riskClass is not IR
              									  String bucketKey,      // currency for IR otherwise bucket number
              									  String riskType, double evaluationTime) throws SolverException, CloneNotSupportedException, CalculationException{
-
+double quantile = 0.975;
          RandomVariableInterface result = null;	RandomVariableInterface[] maturityBucketSensis; // Sensitivities mapped on the SIMM Buckets
 
          if(!hasOptionality && riskType!="delta") return new RandomVariable(0.0);		   
@@ -166,7 +166,7 @@ public abstract class AbstractSIMMProduct implements SIMMProductInterface {
                             // The sensitivities need to be calculated for the given riskClass and riskType                     	            		                     
                             maturityBucketSensis = sensitivityCalculationScheme.getDeltaSensitivitiesIR(this, riskClass, curveIndexName, evaluationTime, model);
                                              
-                            //for(int i=0;i<maturityBucketSensis.length; i++) System.out.println("mbS " + "\t" + maturityBucketSensis[i].getAverage());
+                            //if(curveIndexName=="Libor6m") System.out.println(evaluationTime + "\t" + maturityBucketSensis[3].getQuantile(quantile) + "\t" + maturityBucketSensis[4].getQuantile(quantile) + "\t"+ maturityBucketSensis[5].getQuantile(quantile) + "\t"+ maturityBucketSensis[6].getQuantile(quantile) + "\t"+ maturityBucketSensis[7].getQuantile(quantile) + "\t"+ maturityBucketSensis[8].getQuantile(quantile) + "\t"+maturityBucketSensis[9].getQuantile(quantile) + "\t"+maturityBucketSensis[10].getQuantile(quantile) + "\t"+maturityBucketSensis[11].getQuantile(quantile));
                             // Create a new element of the curveIndex List for given risk class		         
                             HashMap<String,HashMap<String,RandomVariableInterface>> curveIndexNameexactDeltaCache = new HashMap<String,HashMap<String,RandomVariableInterface>>();
                             HashMap<String,RandomVariableInterface> bucketSensitivities = new HashMap<String,RandomVariableInterface>();
