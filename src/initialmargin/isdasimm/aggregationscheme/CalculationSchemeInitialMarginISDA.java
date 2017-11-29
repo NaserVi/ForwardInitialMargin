@@ -2,7 +2,9 @@ package initialmargin.isdasimm.aggregationscheme;
 
 import java.util.AbstractMap;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -21,22 +23,40 @@ import net.finmath.stochastic.RandomVariableInterface;
  * @author Peter Kohl-Landgraf
  */
 
-public class SIMMSchemeMain {
+public class CalculationSchemeInitialMarginISDA {
 
 	public class ParameterCollection{
 	     public ParameterCollection(){//hard values inserted by Mario Viehmann
 	     	
 	     	// Set correlationMatrixWithinSubCurve
-	     	Double[][] curve = new Double[correlationMatrixWithinSubCurve.length][correlationMatrixWithinSubCurve.length];
-	     	for(int i=0;i<curve.length;i++)curve[i]=ArrayUtils.toObject(this.correlationMatrixWithinSubCurve[i]);
-	     	this.MapRiskClassCorrelationIntraBucketMap.put("InterestRate", curve);
+	     	Double[][] corrMatrix = new Double[correlationMatrixWithinSubCurve.length*5+2][correlationMatrixWithinSubCurve.length*5+2];
+	     	//for(int i=0;i<curve.length;i++)curve[i]=ArrayUtils.toObject(this.correlationMatrixWithinSubCurve[i]);
+	     	for(int i=0; i<corrMatrix.length; i++){
+	     		int rowIndex = i/correlationMatrixWithinSubCurve.length;
+	     		int row = i % correlationMatrixWithinSubCurve.length;
+	     		for(int j=0; j<corrMatrix.length; j++){
+	     			if(i==corrMatrix.length-1 || i==corrMatrix.length-2 || j==corrMatrix.length-1 || j==corrMatrix.length-2) {
+	     				corrMatrix[i][j]=new Double(0.0);
+	     				continue;
+	     			}
+	     		    
+	     		    int colIndex = j/correlationMatrixWithinSubCurve.length;
+	     		    double curveCorrelation = rowIndex == colIndex ? 1.0 : 0.982;
+	     		    
+	     		    int col = j % correlationMatrixWithinSubCurve.length;
+	     		    corrMatrix[i][j]= correlationMatrixWithinSubCurve[row][col]*curveCorrelation;
+	     		}
+	     	}
+	     	
+	     	this.MapRiskClassCorrelationIntraBucketMap.put("InterestRate", corrMatrix);
+	     	
 	     	// Set IR Currency Map
 	     	this.IRCurrencyMap = new HashMap<String,String>();
 	     	this.IRCurrencyMap.put("EUR","Regular_Volatility_Currencies");
 	     	// Set RiskClassThresholdMap
 	     	Map<String, Double[][]> innerMap= new HashMap<String, Double[][]>(); Double[][] value = new Double[1][1];
 	     	value[0][0] = new Double(250000000);
-	     	innerMap.put("EUR", value); // or currency?
+	     	innerMap.put("Regular_Volatility_Currencies", value); // or currency?
 	     	Map<String,Map<String, Double[][]>> secondMap=new HashMap<String,Map<String, Double[][]>>();
 	     	secondMap.put("InterestRate", innerMap);
 	     	this.MapRiskClassThresholdMap.put("delta", secondMap);
@@ -67,28 +87,33 @@ public class SIMMSchemeMain {
 	 	private final double[] riskWeightsHighVolCurrency = new double[]{0.0089, 0.0089, 0.0089, 0.0094, 0.0104, 0.0099, 0.0096, 0.0099, 0.0087, 0.0097, 0.0097, 0.0098};
 
 	     
-	     private final double[][] correlationMatrixWithinSubCurve = new double[][]{
-				{1    , 1    , 1    , 0.782, 0.618, 0.498, 0.438, 0.361, 0.27 , 0.196, 0.174, 0.129},
-				{1    , 1    , 1    , 0.782, 0.618, 0.498, 0.438, 0.361, 0.27 , 0.196, 0.174, 0.129},
-				{1    , 1    , 1    , 0.782, 0.618, 0.498, 0.438, 0.361, 0.27 , 0.196, 0.174, 0.129},
-				{0.782, 0.782, 0.782, 1    , 0.84 , 0.739, 0.667, 0.569, 0.444, 0.375, 0.349, 0.296},
-				{0.618, 0.618, 0.618, 0.84 , 1    , 0.917, 0.859, 0.757, 0.626, 0.555, 0.526, 0.471},
-				{0.498, 0.498, 0.498, 0.739, 0.917, 1    , 0.976, 0.895, 0.749, 0.69 , 0.66 , 0.602},
-				{0.438, 0.438, 0.438, 0.667, 0.859, 0.976, 1    , 0.958, 0.831, 0.779, 0.746, 0.69 },
-				{0.361, 0.361, 0.361, 0.569, 0.757, 0.895, 0.958, 1    , 0.925, 0.893, 0.859, 0.812},
-				{0.27 , 0.27 , 0.27 , 0.444, 0.626, 0.749, 0.831, 0.925, 1    , 0.98 , 0.961, 0.931},
-				{0.196, 0.196, 0.196, 0.375, 0.555, 0.69 , 0.779, 0.893, 0.98 , 1    , 0.989, 0.97 },
-				{0.174, 0.174, 0.174, 0.349, 0.526, 0.66 , 0.746, 0.859, 0.961, 0.989, 1    , 0.988},
-				{0.129, 0.129, 0.129, 0.296, 0.471, 0.602, 0.69 , 0.812, 0.931, 0.97 , 0.988, 1    }
+	     private final Double[][] correlationMatrixWithinSubCurve = new Double[][]{
+				{1.0    , 1.0    , 1.0    , 0.782, 0.618, 0.498, 0.438, 0.361, 0.27 , 0.196, 0.174, 0.129},
+				{1.0    , 1.0    , 1.0    , 0.782, 0.618, 0.498, 0.438, 0.361, 0.27 , 0.196, 0.174, 0.129},
+				{1.0    , 1.0    , 1.0    , 0.782, 0.618, 0.498, 0.438, 0.361, 0.27 , 0.196, 0.174, 0.129},
+				{0.782, 0.782, 0.782, 1.0    , 0.84 , 0.739, 0.667, 0.569, 0.444, 0.375, 0.349, 0.296},
+				{0.618, 0.618, 0.618, 0.84 , 1.0    , 0.917, 0.859, 0.757, 0.626, 0.555, 0.526, 0.471},
+				{0.498, 0.498, 0.498, 0.739, 0.917, 1.0    , 0.976, 0.895, 0.749, 0.69 , 0.66 , 0.602},
+				{0.438, 0.438, 0.438, 0.667, 0.859, 0.976, 1.0    , 0.958, 0.831, 0.779, 0.746, 0.69 },
+				{0.361, 0.361, 0.361, 0.569, 0.757, 0.895, 0.958, 1.0    , 0.925, 0.893, 0.859, 0.812},
+				{0.27 , 0.27 , 0.27 , 0.444, 0.626, 0.749, 0.831, 0.925, 1.0    , 0.98 , 0.961, 0.931},
+				{0.196, 0.196, 0.196, 0.375, 0.555, 0.69 , 0.779, 0.893, 0.98 , 1.0    , 0.989, 0.97 },
+				{0.174, 0.174, 0.174, 0.349, 0.526, 0.66 , 0.746, 0.859, 0.961, 0.989, 1.0    , 0.988},
+				{0.129, 0.129, 0.129, 0.296, 0.471, 0.602, 0.69 , 0.812, 0.931, 0.97 , 0.988, 1.0    }
 		    };
 		
 	     
 	     public Double[][]               CrossRiskClassCorrelationMatrix;
+	     
+	     public Map<String,Double>       MapHistoricalVolaRatio;
 
 	     public Map<String,String>       MapFXCategory;
 
+	     final public String[]           ProductClassKeys = {"RatesFX","Credit","Equity","Commodity"};
+	     final public String[]           RiskClassKeys = {"InterestRate","CreditQ","CreditNonQ","Equity","Commodity","FX"};
 	     final public String[]           CreditMaturityBuckets = {"1y","2y","3y","5y","10y"};
 	     final public String[]           IRMaturityBuckets = {"2w","1m","3m","6m","1y","2y","3y","5y","10y","15y","20y","30y"};
+	     final public String[]           IRCurveIndexNames = {"OIS","Libor1m","Libor3m","Libor6m","Libor12m"};
 
 	     public Double             IRCorrelationCrossCurrency = .27;
 
@@ -117,8 +142,6 @@ public class SIMMSchemeMain {
 	 *  Commencement of actual SIMM scheme 
 	 */
 
-    Map<AbstractMap.SimpleEntry<Double,SIMMSchemeSensitivitySet.Key>,RandomVariableInterface> CacheNetSensitivities;
-
     public Map<String,Double>   resultMap;
 
     private AbstractSIMMProduct[] products;
@@ -131,12 +154,11 @@ public class SIMMSchemeMain {
 
    
     // SIMM constructor
-    public SIMMSchemeMain(SIMMPortfolio portfolio, 
-    					  //ParameterCollection parameterCollection, 
+    public CalculationSchemeInitialMarginISDA(SIMMPortfolio portfolio, 
+    					  //ParameterCollection parameterCollection, /* Uncomment this line if parameter collection constructor does not contain hard values */
     					  String calculationCCY) throws CalculationException{
         this.resultMap = new HashMap<>();
         this.calculationCCY = calculationCCY;
-        CacheNetSensitivities = new HashMap<>();
         this.products = portfolio.getProducts();
         this.parameterCollection = new ParameterCollection();
         
@@ -164,10 +186,9 @@ public class SIMMSchemeMain {
     }
     
     // SIMM constructor
-    public SIMMSchemeMain(AbstractSIMMProduct product, String calculationCCY) throws CalculationException{
+    public CalculationSchemeInitialMarginISDA(AbstractSIMMProduct product, String calculationCCY) throws CalculationException{
         this.resultMap = new HashMap<>();
         this.calculationCCY = calculationCCY;
-        CacheNetSensitivities = new HashMap<>();
         this.parameterCollection = new ParameterCollection();
         this.products = new AbstractSIMMProduct[]{product};
         this.productClassKeys = new String[]{product.getProductClass()};
@@ -202,7 +223,7 @@ public class SIMMSchemeMain {
         // contributions of risk classes to IM within that product class
         RandomVariableInterface[] contributions = new RandomVariableInterface[riskClassKeys.length];
         int i = 0;
-        int pathDim = 1;//this.portfolioProducts[0].get//this.nettingset.getActiveProduct(this.nettingset.getActiveProductKeys()[0]).getSensitivitySet(atTime).getPathDimension();
+        //this.portfolioProducts[0].get//this.nettingset.getActiveProduct(this.nettingset.getActiveProductKeys()[0]).getSensitivitySet(atTime).getPathDimension();
         for ( String iRiskClass : riskClassKeys)
         {
             if ( riskClassList.contains(iRiskClass)) { // riskClassList == iRiskClass?
@@ -210,26 +231,74 @@ public class SIMMSchemeMain {
                 contributions[i] = iIM;
             }
             else
-                contributions[i] = new RandomVariable(atTime,pathDim,0.0);
+                contributions[i] = new RandomVariable(atTime,0.0);
             i++;
         }
 
-        RandomVariableInterface simmProductClass = SIMMSchemeMain.getVarianceCovarianceAggregation(contributions,parameterCollection.CrossRiskClassCorrelationMatrix);
+        RandomVariableInterface simmProductClass = CalculationSchemeInitialMarginISDA.getVarianceCovarianceAggregation(contributions,parameterCollection.CrossRiskClassCorrelationMatrix);
         resultMap.put(productClass,simmProductClass.getAverage());
         return simmProductClass;
     }
 
 
-    public RandomVariableInterface getIMForRiskClass(String riskClassKey,String productClass, double atTime){
-        RandomVariableInterface    deltaMargin = this.getDeltaMargin(riskClassKey,productClass,atTime);
-        //RandomVariableInterface    vegaMargin = this.getVegaMargin(riskClassKey,productClass,atTime);
-        //RandomVariableInterface    curatureMargin = this.getDeltaMargin(riskClassKey,productClass, atTime);
-        resultMap.put(productClass+"-"+riskClassKey+"-DeltaMargin",deltaMargin.getAverage());
-        return deltaMargin; //.add(vegaMargin);//.add(vegaMargin).add(curatureMargin);
-    }
+//    public RandomVariableInterface getIMForRiskClass(String riskClassKey,String productClass, double atTime){
+//        RandomVariableInterface    deltaMargin = this.getDeltaMargin(riskClassKey,productClass,atTime);
+//        //RandomVariableInterface    vegaMargin = this.getVegaMargin(riskClassKey,productClass,atTime);
+//        //RandomVariableInterface    curatureMargin = this.getDeltaMargin(riskClassKey,productClass, atTime);
+//        resultMap.put(productClass+"-"+riskClassKey+"-DeltaMargin",deltaMargin.getAverage());
+//        return deltaMargin; //.add(vegaMargin);//.add(vegaMargin).add(curatureMargin);
+//    }
 
     
-    public RandomVariableInterface getDeltaMargin(String riskClassKey,String productClassKey, double atTime){
+//    public RandomVariableInterface getDeltaMargin(String riskClassKey,String productClassKey, double atTime){
+//        RandomVariableInterface deltaMargin = null;
+//        //DeltaMarginSchemeNonIR DeltaScheme = new DeltaMarginSchemeNonIR(this,"Risk_IRCurve",productClassKey,
+//        //                                        this.riskClassRiskWeightMap.get(riskClassKey),this.riskClassCorrelationMap.get(riskClassKey),this.riskClassThresholdMap.get(riskClassKey));
+//
+//        String riskType = "delta";
+//        if ( riskClassKey.equals("InterestRate"))
+//        {
+//            SIMMSchemeIRDelta DeltaScheme = new SIMMSchemeIRDelta(this,productClassKey);
+//            deltaMargin = DeltaScheme.getValue(atTime);
+//        }
+//        /*else if ( riskClassKey.equals("CreditQ")){
+//            MarginSchemeDeltaVega DeltaScheme = new MarginSchemeDeltaVega(this,"CreditQ",productClassKey,riskType);
+//            deltaMargin = DeltaScheme.getValue(atTime);
+//        }
+//        else if ( riskClassKey.equals("CreditNonQ")){
+//            MarginSchemeDeltaVega DeltaScheme = new MarginSchemeDeltaVega(this,"CreditNonQ",productClassKey,riskType);
+//            deltaMargin = DeltaScheme.getValue(atTime);
+//        }
+//        else if ( riskClassKey.equals("Equity")){
+//            MarginSchemeDeltaVega DeltaScheme = new MarginSchemeDeltaVega(this,"Equity",productClassKey,riskType);
+//            deltaMargin = DeltaScheme.getValue(atTime);
+//        }
+//        else if ( riskClassKey.equals("Commodity")){
+//            MarginSchemeDeltaVega DeltaScheme = new MarginSchemeDeltaVega(this,"Commodity",productClassKey,riskType);
+//            deltaMargin = DeltaScheme.getValue(atTime);
+//        }
+//        else if ( riskClassKey.equals("FX")){
+//            MarginSchemeDeltaVega DeltaScheme = new MarginSchemeDeltaVega(this,"FX",productClassKey,riskType);
+//            deltaMargin = DeltaScheme.getValue(atTime);
+//        }*/
+//
+//        //MarginSchemeDeltaVega DeltaScheme = new MarginSchemeDeltaVega(this,riskClassKey,productClassKey,riskType);
+//        return deltaMargin;
+//    }
+    
+    
+    public RandomVariableInterface      getIMForRiskClass(String riskClassKey,String productClass, double atTime){
+        RandomVariableInterface    deltaMargin = this.getDeltaMargin(riskClassKey,productClass,atTime);
+        RandomVariableInterface    vegaMargin = this.getVegaMargin(riskClassKey,productClass,atTime);
+        //RandomVariableInterface    curatureMargin = this.getDeltaMargin(riskClassKey,productClass, atTime);
+        resultMap.put(productClass+"-"+riskClassKey+"-DeltaMargin",deltaMargin.getAverage());
+        resultMap.put(productClass+"-"+riskClassKey+"-VegaMargin",vegaMargin.getAverage());
+
+        return deltaMargin.add(vegaMargin);//.add(vegaMargin).add(curatureMargin);
+
+    }
+
+    public RandomVariableInterface      getDeltaMargin(String riskClassKey,String productClassKey, double atTime){
         RandomVariableInterface deltaMargin = null;
         //DeltaMarginSchemeNonIR DeltaScheme = new DeltaMarginSchemeNonIR(this,"Risk_IRCurve",productClassKey,
         //                                        this.riskClassRiskWeightMap.get(riskClassKey),this.riskClassCorrelationMap.get(riskClassKey),this.riskClassThresholdMap.get(riskClassKey));
@@ -237,10 +306,10 @@ public class SIMMSchemeMain {
         String riskType = "delta";
         if ( riskClassKey.equals("InterestRate"))
         {
-            SIMMSchemeIRDelta DeltaScheme = new SIMMSchemeIRDelta(this,productClassKey);
+            MarginSchemeIRDelta DeltaScheme = new MarginSchemeIRDelta(this,productClassKey);
             deltaMargin = DeltaScheme.getValue(atTime);
         }
-        /*else if ( riskClassKey.equals("CreditQ")){
+        else if ( riskClassKey.equals("CreditQ")){
             MarginSchemeDeltaVega DeltaScheme = new MarginSchemeDeltaVega(this,"CreditQ",productClassKey,riskType);
             deltaMargin = DeltaScheme.getValue(atTime);
         }
@@ -259,7 +328,7 @@ public class SIMMSchemeMain {
         else if ( riskClassKey.equals("FX")){
             MarginSchemeDeltaVega DeltaScheme = new MarginSchemeDeltaVega(this,"FX",productClassKey,riskType);
             deltaMargin = DeltaScheme.getValue(atTime);
-        }*/
+        }
 
         //MarginSchemeDeltaVega DeltaScheme = new MarginSchemeDeltaVega(this,riskClassKey,productClassKey,riskType);
         return deltaMargin;
@@ -267,10 +336,12 @@ public class SIMMSchemeMain {
 
 
     public RandomVariableInterface      getVegaMargin(String riskClassKey,String productClassKey,double atTime){
-    	throw new RuntimeException();
-        //MarginSchemeDeltaVega VegaScheme = new MarginSchemeDeltaVega(this,riskClassKey,productClassKey,"vega");
-        //return VegaScheme.getValue(atTime);
+        MarginSchemeDeltaVega VegaScheme = new MarginSchemeDeltaVega(this,riskClassKey,productClassKey,"vega");
+        return new RandomVariable(0.0);//VegaScheme.getValue(atTime);
     }
+
+
+   
 
     public RandomVariableInterface      getCurvatureMargin(String riskClassKey,String productClassKey,double atTime){
         throw new RuntimeException();
@@ -380,6 +451,48 @@ public class SIMMSchemeMain {
            }
            return relevantBuckets.toArray(new String[relevantBuckets.size()]);
     }
-
     
+    
+//    public Map<String,String[]>     getMapRiskClassRiskFactors(String riskTypeString, String bucketKey,double atTime){
+////        String[] tradeList = nettingset.getActiveProductKeys();
+////        Map<String,SensitivitySet> tradeSensitivityMap = Stream.of(tradeList).collect(Collectors.toMap(t->t,t->nettingset.getActiveProduct(t).getSensitivitySet(atTime)));
+////
+////        List<String> riskClassKeys = getRiskClassKeys(tradeSensitivityMap);
+////        
+//        List<String> riskClassKeys = new ArrayList<>(Arrays.asList(this.riskClassKeys));
+//        if (!riskTypeString.equals("vega") ) {
+//            Map<String, String[]> mapRiskClassRiskFactorKeys = new HashMap<>();
+////        if ( riskTypeString.equals("delta")) {
+//            riskClassKeys.stream().forEach(riskClass -> {
+//                List<String> riskFactors = tradeSensitivityMap.keySet().stream()
+//                        .flatMap(
+//                                key -> tradeSensitivityMap.get(key).getKeySet().stream().filter(k -> k!=null &&  k.getRiskClass().equals(riskClass) && k.getRiskType().equals(riskTypeString) && k.getBucketKey().equals(bucketKey)).map(k -> k.getRiskFactorKey())
+//                        ).distinct().collect(Collectors.toList());
+//                mapRiskClassRiskFactorKeys.put(riskClass, riskFactors.toArray(new String[riskFactors.size()]));
+//            });
+//            return mapRiskClassRiskFactorKeys;
+////        }
+//        }
+//        else{
+//            Map<String,String[]>     mapRiskClassRiskFactorKeys = new HashMap<>();
+//            riskClassKeys.stream().forEach(riskClass -> {
+//                if ( riskClass.equals("InterestRate") ) {
+//                    List<String> riskFactors = tradeSensitivityMap.keySet().stream()
+//                            .flatMap(
+//                                    key -> tradeSensitivityMap.get(key).getKeySet().stream().filter(k -> k!=null && k.getRiskClass().equals(riskClass) && k.getRiskType().equals(riskTypeString) && k.getBucketKey().equals(bucketKey)).map(k -> k.getRiskFactorKey())
+//                            ).distinct().collect(Collectors.toList());
+//                    mapRiskClassRiskFactorKeys.put(riskClass, riskFactors.toArray(new String[riskFactors.size()]));
+//                }
+//                else{
+//                    List<String> riskFactors = tradeSensitivityMap.keySet().stream()
+//                            .flatMap(
+//                                    key -> tradeSensitivityMap.get(key).getKeySet().stream().filter(k ->  k!=null && k.getRiskClass().equals(riskClass) && k.getRiskType().equals(riskTypeString) && k.getBucketKey().equals(bucketKey)).map(k -> k.getRiskFactorKey())
+//                            ).distinct().collect(Collectors.toList());
+//                    mapRiskClassRiskFactorKeys.put(riskClass, riskFactors.toArray(new String[riskFactors.size()]));
+//                }
+//            });
+//            return mapRiskClassRiskFactorKeys;
+//        }
+//
+//    }
 }

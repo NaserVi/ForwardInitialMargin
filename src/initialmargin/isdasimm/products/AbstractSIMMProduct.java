@@ -11,7 +11,7 @@ import java.util.stream.Collectors;
 
 import org.apache.commons.lang3.ArrayUtils;
 
-import initialmargin.isdasimm.aggregationscheme.SIMMSchemeMain;
+import initialmargin.isdasimm.aggregationscheme.CalculationSchemeInitialMarginISDA;
 import initialmargin.isdasimm.changedfinmath.LIBORModelMonteCarloSimulationInterface;
 import initialmargin.isdasimm.changedfinmath.products.AbstractLIBORMonteCarloProduct;
 import initialmargin.isdasimm.sensitivity.AbstractSIMMSensitivityCalculation;
@@ -51,7 +51,7 @@ public abstract class AbstractSIMMProduct implements SIMMProductInterface {
     protected double lastEvaluationTime = -1;
     protected ConditionalExpectationEstimatorInterface conditionalExpectationOperator;
     protected AbstractSIMMSensitivityCalculation sensitivityCalculationScheme;
-    private   SIMMSchemeMain simmScheme;
+    private   CalculationSchemeInitialMarginISDA simmScheme;
     
     
     final private String[]  IRMaturityBuckets = {"2w","1m","3m","6m","1y","2y","3y","5y","10y","15y","20y","30y"};
@@ -130,7 +130,7 @@ public abstract class AbstractSIMMProduct implements SIMMProductInterface {
  	        this.exerciseIndicator = null;
  	        this.exactDeltaCache.clear();
  	        this.sensitivityCalculationScheme = new SIMMSensitivityCalculation(sensitivityMode, liborWeightMode, interpolationStep, model, isUseAnalyticSensis);
- 			this.simmScheme= new SIMMSchemeMain(this,calculationCCY);
+ 			this.simmScheme= new CalculationSchemeInitialMarginISDA(this,calculationCCY);
  		}
  		
  		return simmScheme.getValue(evaluationTime);
@@ -230,24 +230,16 @@ double quantile = 0.975;
 		  
  	   if(gradient==null) {
 	      // Clear cache of numeraire adjustments of the model to capture the numeraire adjustments from the product valuation
-		  model.clearNumeraireAdjustmentCache();
-		
+		  model.clearNumeraireAdjustmentCache();		
 		  // Calculate the product value as of time 0.
-		  RandomVariableDifferentiableInterface productValue = (RandomVariableDifferentiableInterface) getLIBORMonteCarloProduct().getValue(0.0, model);
-		     
+		  RandomVariableDifferentiableInterface productValue = (RandomVariableDifferentiableInterface) getLIBORMonteCarloProduct().getValue(0.0, model);		     
 		  // Get the map of numeraire adjustments used specifically for this product
-		  this.numeraireAdjustmentMap.putAll(model.getNumeraireAdjustmentMap());
-			 
+		  this.numeraireAdjustmentMap.putAll(model.getNumeraireAdjustmentMap());			 
 		  // Calculate the gradient
-		  //long timeStart = System.currentTimeMillis();
 		  Map<Long, RandomVariableInterface> gradientOfProduct = productValue.getGradient();
-		  //long timeEnd = System.currentTimeMillis();
-		  //System.out.println("Time for Gradient: " + SIMMTest.formatterTime.format((timeEnd-timeStart)/1000.0)+"s");
 		  this.gradient = gradientOfProduct;
-	   }
-		  
-	   return this.gradient;
-		  
+	   }		  
+	   return this.gradient;		  
 	}
  	  
  	 
@@ -334,7 +326,7 @@ double quantile = 0.975;
 		for(int liborIndex=lastLiborIndex+timeGridIndicator;liborIndex<model.getNumberOfLibors(); liborIndex++){
 			RandomVariableInterface liborAtTimeIndex = model.getLIBOR(timeIndexAtEval, liborIndex);
 		    RandomVariableInterface dVdL = getDerivative(liborAtTimeIndex);
-		    valueLiborSensitivities[liborIndex-lastLiborIndex] = dVdL.mult(numeraire).getConditionalExpectation(conditionalExpectationOperator);//.mult(barrier);
+		    valueLiborSensitivities[liborIndex-lastLiborIndex] = dVdL.mult(numeraire).getConditionalExpectation(conditionalExpectationOperator);
 		}
 
 		if(sensitivityCalculationScheme.isUseTimeGridAdjustment){
@@ -422,9 +414,7 @@ double quantile = 0.975;
 		   Arrays.fill(dPdP[cfIndex], new RandomVariable(0.0));
 		   RandomVariableInterface bondLowerIndex = lowerIndex==0 ? new RandomVariable(1.0) : model.getForwardBondOIS(timesP.getTime(lowerIndex),evaluationTime);
 		   RandomVariableInterface bondUpperIndex = model.getForwardBondOIS(timesP.getTime(lowerIndex+1),evaluationTime);
-		   RandomVariableInterface bondAtCF       = model.getForwardBondOIS(futureDiscountTimes[cfIndex],evaluationTime);
-		   //double test = bondAtCF.getAverage();
-		   //double test2 = bondLowerIndex.log().mult(1-alpha).add(bondUpperIndex.log().mult(alpha)).exp().getAverage();
+		   RandomVariableInterface bondAtCF       = model.getForwardBondOIS(futureDiscountTimes[cfIndex],evaluationTime);		   
 		   dPdP[cfIndex][lowerIndex] = bondAtCF.mult(1-alpha).div(bondLowerIndex);
 		   dPdP[cfIndex][lowerIndex+1] = bondAtCF.mult(alpha).div(bondUpperIndex);
 	   }

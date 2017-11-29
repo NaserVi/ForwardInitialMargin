@@ -629,50 +629,34 @@ public class LIBORMarketModel extends AbstractModel implements LIBORMarketModelI
 			int upperIndex = -timeIndex-1;
 			int lowerIndex = upperIndex-1;
 			if(lowerIndex < 0) throw new IllegalArgumentException("Numeraire requested for time " + time + ". Unsupported");
-
 			double alpha = (time-getLiborPeriod(lowerIndex)) / (getLiborPeriod(upperIndex) - getLiborPeriod(lowerIndex));
-			//RandomVariableInterface numeraire = getNumeraire(getLiborPeriod(upperIndex)).log().mult(alpha).add(getNumeraire(getLiborPeriod(lowerIndex)).log().mult(1.0-alpha)).exp();  
 			RandomVariableInterface numeraire = getUnadjustedNumeraire(upperIndex).log().mult(alpha).add(getUnadjustedNumeraire(lowerIndex).log().mult(1.0-alpha)).exp();
 
-			/*
-			 * Adjust for discounting, i.e. funding or collateralization
-			 */
-			if(discountCurve != null) {
-				// This includes a control for zero bonds
-				
+			// Adjust for discounting, i.e. funding or collateralization 
+			if(discountCurve != null) {							
 				if(!numeraireAdjustmentCache.containsKey(time)){
-					   RandomVariableInterface deterministicNumeraireAdjustment = getRandomVariableForConstant(numeraire.pow(-1.0).getAverage()).div(discountCurve.getDiscountFactor(time));
-					   numeraireAdjustmentCache.put(time, deterministicNumeraireAdjustment);
-				}
-				
+				   RandomVariableInterface deterministicNumeraireAdjustment = getRandomVariableForConstant(numeraire.pow(-1.0).getAverage()).div(discountCurve.getDiscountFactor(time));
+				   numeraireAdjustmentCache.put(time, deterministicNumeraireAdjustment);
+				}				
 				numeraire = numeraire.mult(numeraireAdjustmentCache.get(time));
 			}
 
 			return numeraire;
 		}
 
-		/*
-		 * Check if numeraire cache is values (i.e. process did not change)
-		 */
+		// Check if numeraire cache is values (i.e. process did not change)
 		if(getProcess() != numerairesProcess) {
 			numeraires.clear();
 			numerairesProcess = getProcess();
 		}
 
-		/*
-		 * Check if numeraire is part of the cache
-		 */
-		
+		// Check if numeraire is part of the cache		
 		if(numeraires.get(timeIndex) == null) doCalculateNumeraire(timeIndex);
 		RandomVariableInterface numeraire = numeraires.get(timeIndex);
 		
-		/*
-		 * Adjust for discounting, i.e. funding or collateralization
-		 */
-			
+		//Adjust for discounting, i.e. funding or collateralization				
 		if(discountCurve != null) {
-			// This includes a control for zero bonds
-				
+							
 			if(!numeraireAdjustmentCache.containsKey(time)){
 			   RandomVariableInterface deterministicNumeraireAdjustment = getRandomVariableForConstant(numeraire.pow(-1.0).getAverage()).div(discountCurve.getDiscountFactor(time));
 			   numeraireAdjustmentCache.put(time, deterministicNumeraireAdjustment);

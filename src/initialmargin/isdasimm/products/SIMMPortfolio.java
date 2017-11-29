@@ -1,5 +1,5 @@
 package initialmargin.isdasimm.products;
-import initialmargin.isdasimm.aggregationscheme.SIMMSchemeMain;
+import initialmargin.isdasimm.aggregationscheme.CalculationSchemeInitialMarginISDA;
 import initialmargin.isdasimm.changedfinmath.LIBORModelMonteCarloSimulationInterface;
 import initialmargin.isdasimm.sensitivity.AbstractSIMMSensitivityCalculation;
 import initialmargin.isdasimm.sensitivity.AbstractSIMMSensitivityCalculation.SensitivityMode;
@@ -21,7 +21,7 @@ public class SIMMPortfolio {
 	
 	private AbstractSIMMProduct[] products;
     private AbstractSIMMSensitivityCalculation sensitivityCalculationScheme;  // WeightMode and SensitivityMode are set in the class SIMMSensitivityMapping
-    private SIMMSchemeMain SIMMScheme;
+    private CalculationSchemeInitialMarginISDA SIMMScheme;
     private LIBORModelMonteCarloSimulationInterface model;
     
    
@@ -35,7 +35,7 @@ public class SIMMPortfolio {
 	 */
 	public SIMMPortfolio(AbstractSIMMProduct[] products, String currency) throws CalculationException{
 		   this.products=products;
-		   this.SIMMScheme = new SIMMSchemeMain(this, currency);
+		   this.SIMMScheme = new CalculationSchemeInitialMarginISDA(this, currency);
 		   
 	}	
 	
@@ -67,7 +67,7 @@ public class SIMMPortfolio {
 	 	    
 	 	    this.sensitivityCalculationScheme = new SIMMSensitivityCalculation(sensitivityMode, liborWeightMode, interpolationStep, model, isUseAnalyticSwapSensitivities);
 	 	    setModel(model); // Set the (new) model. The method setModel also clears the sensitivity maps and the gradient.
-	 	    this.SIMMScheme= new SIMMSchemeMain(this,calculationCCY);
+	 	    this.SIMMScheme= new CalculationSchemeInitialMarginISDA(this,calculationCCY);
 	 	}  
 		
 		
