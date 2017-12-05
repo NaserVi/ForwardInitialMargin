@@ -43,6 +43,7 @@ public class SIMMPortfolio {
 		return this.products;
 	}
 	
+	
 	/**Calculate the forward initial margin of the portfolio.
 	 * 
 	 * @param evaluationTime The forward initial margin time
@@ -50,7 +51,6 @@ public class SIMMPortfolio {
 	 * @param calculationCCY The currency in which the IM is calculated
 	 * @param sensitivityMode The method to be used for sensitivity calculation (Exact, LinearMelting or Interpolation)
 	 * @param liborWeightMode The method to be used for converting the libor sensitivities to swap sensitivities (Constant or Stochastic)
-	 * @param isUseAnalyticSwapSensitivities
 	 * @return The forward initial margin for given time and model
 	 * @throws CalculationException
 	 */
@@ -59,13 +59,38 @@ public class SIMMPortfolio {
              										String calculationCCY,
              										SensitivityMode sensitivityMode,
              										WeightMode liborWeightMode,
-             										double interpolationStep,
-             										boolean isUseAnalyticSwapSensitivities) throws CalculationException{
+             										double interpolationStep) throws CalculationException{
+		return getInitialMargin(evaluationTime, model, calculationCCY, sensitivityMode,liborWeightMode,interpolationStep,true,false,true);
+	}
+	
+	
+	/**Calculate the forward initial margin of the portfolio.
+	 * 
+	 * @param evaluationTime The forward initial margin time
+	 * @param model The Libor market model
+	 * @param calculationCCY The currency in which the IM is calculated
+	 * @param sensitivityMode The method to be used for sensitivity calculation (Exact, LinearMelting or Interpolation)
+	 * @param liborWeightMode The method to be used for converting the libor sensitivities to swap sensitivities (Constant or Stochastic)
+	 * @param isUseAnalyticSwapSensitivities true if for swaps we use analytic sensitivities
+	 * @param isUseTimeGridAdjustment true if we do the time grid adjustment dL/dL
+	 * @param isConsiderOISSensis true if we consider OIS sensitivities for the SIMM calculation
+	 * @return The forward initial margin for given time and model
+	 * @throws CalculationException
+	 */
+	public RandomVariableInterface getInitialMargin(double evaluationTime, 
+             										LIBORModelMonteCarloSimulationInterface model, 
+             										String calculationCCY,
+             										SensitivityMode sensitivityMode,
+             										WeightMode liborWeightMode,
+             										double interpolationStep,         										
+             										boolean isUseTimeGridAdjustment,
+             										boolean isUseAnalyticSwapSensis,
+             										boolean isConsiderOISSensis) throws CalculationException{
 		
 		
 	 	if(this.model==null || !model.equals(this.model) || (sensitivityCalculationScheme!=null && (sensitivityMode !=sensitivityCalculationScheme.getSensitivityMode() || liborWeightMode !=sensitivityCalculationScheme.getWeightMode()))) { // At inception (t=0) or if the model is reset            
 	 	    
-	 	    this.sensitivityCalculationScheme = new SIMMSensitivityCalculation(sensitivityMode, liborWeightMode, interpolationStep, model, isUseAnalyticSwapSensitivities);
+	 	    this.sensitivityCalculationScheme = new SIMMSensitivityCalculation(sensitivityMode, liborWeightMode, interpolationStep, model, isUseTimeGridAdjustment, isUseAnalyticSwapSensis, isConsiderOISSensis);
 	 	    setModel(model); // Set the (new) model. The method setModel also clears the sensitivity maps and the gradient.
 	 	    this.SIMMScheme= new CalculationSchemeInitialMarginISDA(this,calculationCCY);
 	 	}  
@@ -85,7 +110,7 @@ public class SIMMPortfolio {
 		this.model = model;
 		for(AbstractSIMMProduct product : products){
 			// Within the method setModel sensitivity maps are cleared and the gradient of each product is set to null.
-			product.setModel(model);
+			product.setGradient(model);
 			product.clearDeltaCache();
  	        product.setNullExerciseIndicator();
 			product.setSIMMSensitivityCalculation(sensitivityCalculationScheme);

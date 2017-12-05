@@ -57,7 +57,7 @@ public class SIMMProductFigures {
 	private void doCalculateIM() throws CalculationException{
 	   this.forwardIM = new RandomVariableInterface[(int)(finalTime/timeStep)+1];
 	   for(int i=0;i<=(int)(finalTime/timeStep);i++) {
-		   forwardIM[i] = product.getInitialMargin(i*timeStep, model, "EUR", sensitivityMode, weightMode, interpolationStep, isUseAnalyticSensitivities);
+		   forwardIM[i] = product.getInitialMargin(i*timeStep, model, "EUR", sensitivityMode, weightMode, interpolationStep, true, isUseAnalyticSensitivities, true);
 	   }
     }
 	

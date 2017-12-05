@@ -293,22 +293,22 @@ public class SIMMBermudanSwaption extends AbstractSIMMProduct{
 		if(!swapSensitivityMap.containsKey(curveIndexName)){
 			double evaluationTime = swap.getStartTime();
 			// Get OIS Sensis	
-			RandomVariableInterface[] dVdP = SIMMSimpleSwap.getAnalyticSensitivities(evaluationTime,swap.getFixingDates(), swap.getSwapRates(), model.getLiborPeriodDiscretization().getTimeStep(0), swap.getNotional(), model, "OIS");
+			RandomVariableInterface[] dVdP = SIMMSimpleSwap.getAnalyticSensitivities(evaluationTime,swap.getFixingDates(), swap.getSwapRates(), modelCache.getLiborPeriodDiscretization().getTimeStep(0), swap.getNotional(), modelCache, "OIS");
 			double[] futureDiscountTimes = Arrays.stream(swap.getPaymentDates()).filter(n -> n > evaluationTime).toArray();
-			RandomVariableInterface[] swapSensisOIS = getDiscountCurveSensitivities(evaluationTime, futureDiscountTimes, dVdP, "InterestRate", model);		    
+			RandomVariableInterface[] swapSensisOIS = getDiscountCurveSensitivities(evaluationTime, futureDiscountTimes, dVdP, "InterestRate", modelCache);		    
             swapSensitivityMap.put("OIS", swapSensisOIS);
             
             // Get forward curve sensis
-			RandomVariableInterface[] swapSensisAna = SIMMSimpleSwap.getAnalyticSensitivities(evaluationTime, swap.getFixingDates(), swap.getSwapRates(), model.getLiborPeriodDiscretization().getTimeStep(0), swap.getNotional(), model, "Libor");				  
+			RandomVariableInterface[] swapSensisAna = SIMMSimpleSwap.getAnalyticSensitivities(evaluationTime, swap.getFixingDates(), swap.getSwapRates(), modelCache.getLiborPeriodDiscretization().getTimeStep(0), swap.getNotional(), modelCache, "Libor");				  
 			// Get time grid adjustment
-			RandomVariableInterface[][] dLdL =  AbstractSIMMSensitivityCalculation.getLiborTimeGridAdjustment(evaluationTime, model);	   
+			RandomVariableInterface[][] dLdL =  AbstractSIMMSensitivityCalculation.getLiborTimeGridAdjustment(evaluationTime, modelCache);	   
 			RandomVariableInterface[] dVdL = AbstractSIMMSensitivityCalculation.multiply(swapSensisAna,dLdL);
             
 			// Calculate dV/dS = dV/dL * dL/dS
-		    RandomVariableInterface[] swapSensisLibor = sensitivityCalculationScheme.getValueSwapSensitivities(evaluationTime, dVdL, model);  
+		    RandomVariableInterface[] swapSensisLibor = sensitivityCalculationScheme.getValueSwapSensitivities(evaluationTime, dVdL, modelCache);  
 		        //for(int i=0;i<swapSensisLibor.length;i++) System.out.println("dVdL " + swapSensisLibor[i].getAverage());
 		        // Map Sensitivities on SIMM Buckets
-		    swapSensisLibor = AbstractSIMMSensitivityCalculation.mapSensitivitiesOnBuckets(swapSensisLibor, "InterestRate" /*riskClass*/, null, model);
+		    swapSensisLibor = AbstractSIMMSensitivityCalculation.mapSensitivitiesOnBuckets(swapSensisLibor, "InterestRate" /*riskClass*/, null, modelCache);
 			
 			
 			swapSensitivityMap.put("Libor6m", swapSensisLibor);
@@ -345,8 +345,8 @@ public class SIMMBermudanSwaption extends AbstractSIMMProduct{
 		
 		// Create a conditional expectation estimator with some basis functions (predictor variables) for conditional expectation estimation.
         RandomVariableInterface[] regressor = new RandomVariableInterface[2];
-        regressor[0]= model.getLIBOR(evaluationTime, evaluationTime,evaluationTime+model.getLiborPeriodDiscretization().getTimeStep(0)).mult(indicator);
-		regressor[1]= model.getLIBOR(evaluationTime, evaluationTime, model.getLiborPeriodDiscretization().getTime(model.getNumberOfLibors()-1)).mult(indicator);
+        regressor[0]= modelCache.getLIBOR(evaluationTime, evaluationTime,evaluationTime+modelCache.getLiborPeriodDiscretization().getTimeStep(0)).mult(indicator);
+		regressor[1]= modelCache.getLIBOR(evaluationTime, evaluationTime, modelCache.getLiborPeriodDiscretization().getTime(modelCache.getNumberOfLibors()-1)).mult(indicator);
        	ArrayList<RandomVariableInterface> basisFunctions = getRegressionBasisFunctions(regressor, 2);
        	this.conditionalExpectationOperator = new MonteCarloConditionalExpectationRegression(basisFunctions.toArray(new RandomVariableInterface[0]));
 

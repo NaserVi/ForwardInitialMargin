@@ -148,7 +148,7 @@ public class SIMMSwaption extends AbstractSIMMProduct{
 
 	@Override
 	public RandomVariableInterface getExerciseIndicator(double time) throws CalculationException {
-		if(exerciseIndicator==null) exerciseIndicator = swaption.getExerciseIndicator(model);
+		if(exerciseIndicator==null) exerciseIndicator = swaption.getExerciseIndicator(modelCache);
 		return this.exerciseIndicator;
 	}
 	
@@ -171,20 +171,20 @@ public class SIMMSwaption extends AbstractSIMMProduct{
 		
 		// Create a conditional expectation estimator with some basis functions (predictor variables) for conditional expectation estimation.
         RandomVariableInterface[] regressor = new RandomVariableInterface[2];
-        regressor[0]= model.getLIBOR(evaluationTime, evaluationTime,evaluationTime+model.getLiborPeriodDiscretization().getTimeStep(0)).mult(indicator);
-		regressor[1]= model.getLIBOR(evaluationTime, evaluationTime, model.getLiborPeriodDiscretization().getTime(model.getNumberOfLibors()-1)).mult(indicator);
-       	ArrayList<RandomVariableInterface> basisFunctions = getRegressionBasisFunctions(regressor, 2);
+        regressor[0]= modelCache.getLIBOR(evaluationTime, evaluationTime,evaluationTime+modelCache.getLiborPeriodDiscretization().getTimeStep(0)).mult(indicator);
+		regressor[1]= modelCache.getLIBOR(evaluationTime, evaluationTime, modelCache.getLiborPeriodDiscretization().getTime(modelCache.getNumberOfLibors()-1)).mult(indicator);
+       	ArrayList<RandomVariableInterface> basisFunctions = getRegressionBasisFunctions(regressor, 2, indicator);
        	this.conditionalExpectationOperator = new MonteCarloConditionalExpectationRegression(basisFunctions.toArray(new RandomVariableInterface[0]));
 
 	}
 	
-	private static ArrayList<RandomVariableInterface> getRegressionBasisFunctions(RandomVariableInterface[] libors, int order) {
+	private static ArrayList<RandomVariableInterface> getRegressionBasisFunctions(RandomVariableInterface[] libors, int order, RandomVariableInterface indicator) {
 		ArrayList<RandomVariableInterface> basisFunctions = new ArrayList<RandomVariableInterface>();
 		// Create basis functions - here: 1, S, S^2, S^3, S^4
 		
 		for(int liborIndex=0; liborIndex<libors.length;liborIndex++){
 		  for(int powerOfRegressionMonomial=0; powerOfRegressionMonomial<=order; powerOfRegressionMonomial++) {
-			  basisFunctions.add(libors[liborIndex].pow(powerOfRegressionMonomial));
+			  basisFunctions.add(libors[liborIndex].pow(powerOfRegressionMonomial).mult(indicator));
 		  }
 		  
 		}
@@ -199,11 +199,11 @@ public class SIMMSwaption extends AbstractSIMMProduct{
     private void setSwapGradient() throws CalculationException{
 		 if(!super.isGradientOfDeliveryProduct){
 		    // Clear cache of numeraire adjustments of the model to capture the numeraire adjustments from the product valuation
-		    model.clearNumeraireAdjustmentCache();
+		    modelCache.clearNumeraireAdjustmentCache();
 		    // Calculate the product value as of time 0.
-		    RandomVariableDifferentiableInterface productValue = (RandomVariableDifferentiableInterface) swap.getValue(0.0, model).mult(getExerciseIndicator(swaption.getExerciseDate()+0.0001));
+		    RandomVariableDifferentiableInterface productValue = (RandomVariableDifferentiableInterface) swap.getValue(0.0, modelCache).mult(getExerciseIndicator(swaption.getExerciseDate()+0.0001));
 		    // Get the map of numeraire adjustments used specifically for this product
-	        super.numeraireAdjustmentMap.putAll(model.getNumeraireAdjustmentMap());
+	        super.numeraireAdjustmentMap.putAll(modelCache.getNumeraireAdjustmentMap());
 		    // Calculate the gradient
 		    Map<Long, RandomVariableInterface> gradientOfProduct = productValue.getGradient();
 		    // Set the gradient

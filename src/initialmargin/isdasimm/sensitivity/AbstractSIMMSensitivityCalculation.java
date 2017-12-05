@@ -28,7 +28,8 @@ public abstract class AbstractSIMMSensitivityCalculation {
 	public enum SensitivityMode{
     	LinearMelting,
     	Interpolation,
-    	Exact // AAD or Analytic (for Swaps)
+    	Exact, // AAD or Analytic (for Swaps)
+    	InterpolationOIS
     }
     
     protected SensitivityMode sensitivityMode;
@@ -66,7 +67,7 @@ public abstract class AbstractSIMMSensitivityCalculation {
      * @param interpolationStep
      */
     public AbstractSIMMSensitivityCalculation(SensitivityMode sensitivityMode, WeightMode liborWeightMode, double interpolationStep){
-        this(sensitivityMode, liborWeightMode, true, true, true);
+        this(sensitivityMode, liborWeightMode, false, true, true);
     }
     
     
@@ -152,10 +153,9 @@ public abstract class AbstractSIMMSensitivityCalculation {
  		  
  		        // Calculate dV/dS = dV/dL * dL/dS
  		        delta = getValueSwapSensitivities(evaluationTime, dVdL, model);  
- 		        //for(int i=0;i<delta.length;i++) System.out.println("dVdL " + delta[i].getAverage());
+ 		       
  		        // Map Sensitivities on SIMM Buckets
- 		        delta = mapSensitivitiesOnBuckets(delta, "InterestRate" /*riskClass*/, null, model);
- 		        //for(int i=0;i<delta.length;i++) System.out.println("dVdLBuckets " + delta[i].getAverage());
+ 		        delta = mapSensitivitiesOnBuckets(delta, "InterestRate" /*riskClass*/, null, model);		       
  		        
  		        break;
  		
@@ -164,7 +164,7 @@ public abstract class AbstractSIMMSensitivityCalculation {
  		        if(isConsiderOISSensitivities) {
  			    
  		          // Calculate dV/dS = dV/dP * dP/dS. These Sensis are already on SIMM Buckets
- 		          delta = product.getDiscountCurveSensitivities("InterestRate" /*riskClass*/,evaluationTime, model); //dV/dS
+ 		          delta = product.getDiscountCurveSensitivities("InterestRate" /*riskClass*/,evaluationTime, model); 
  			    		    
  		        } else {
  		          // Set OIS sensitivities to zero on all SIMM buckets

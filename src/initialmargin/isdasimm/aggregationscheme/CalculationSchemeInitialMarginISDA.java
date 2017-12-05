@@ -309,26 +309,26 @@ public class CalculationSchemeInitialMarginISDA {
             MarginSchemeIRDelta DeltaScheme = new MarginSchemeIRDelta(this,productClassKey);
             deltaMargin = DeltaScheme.getValue(atTime);
         }
-        else if ( riskClassKey.equals("CreditQ")){
-            MarginSchemeDeltaVega DeltaScheme = new MarginSchemeDeltaVega(this,"CreditQ",productClassKey,riskType);
-            deltaMargin = DeltaScheme.getValue(atTime);
-        }
-        else if ( riskClassKey.equals("CreditNonQ")){
-            MarginSchemeDeltaVega DeltaScheme = new MarginSchemeDeltaVega(this,"CreditNonQ",productClassKey,riskType);
-            deltaMargin = DeltaScheme.getValue(atTime);
-        }
-        else if ( riskClassKey.equals("Equity")){
-            MarginSchemeDeltaVega DeltaScheme = new MarginSchemeDeltaVega(this,"Equity",productClassKey,riskType);
-            deltaMargin = DeltaScheme.getValue(atTime);
-        }
-        else if ( riskClassKey.equals("Commodity")){
-            MarginSchemeDeltaVega DeltaScheme = new MarginSchemeDeltaVega(this,"Commodity",productClassKey,riskType);
-            deltaMargin = DeltaScheme.getValue(atTime);
-        }
-        else if ( riskClassKey.equals("FX")){
-            MarginSchemeDeltaVega DeltaScheme = new MarginSchemeDeltaVega(this,"FX",productClassKey,riskType);
-            deltaMargin = DeltaScheme.getValue(atTime);
-        }
+//        else if ( riskClassKey.equals("CreditQ")){
+//            MarginSchemeDeltaVega DeltaScheme = new MarginSchemeDeltaVega(this,"CreditQ",productClassKey,riskType);
+//            deltaMargin = DeltaScheme.getValue(atTime);
+//        }
+//        else if ( riskClassKey.equals("CreditNonQ")){
+//            MarginSchemeDeltaVega DeltaScheme = new MarginSchemeDeltaVega(this,"CreditNonQ",productClassKey,riskType);
+//            deltaMargin = DeltaScheme.getValue(atTime);
+//        }
+//        else if ( riskClassKey.equals("Equity")){
+//            MarginSchemeDeltaVega DeltaScheme = new MarginSchemeDeltaVega(this,"Equity",productClassKey,riskType);
+//            deltaMargin = DeltaScheme.getValue(atTime);
+//        }
+//        else if ( riskClassKey.equals("Commodity")){
+//            MarginSchemeDeltaVega DeltaScheme = new MarginSchemeDeltaVega(this,"Commodity",productClassKey,riskType);
+//            deltaMargin = DeltaScheme.getValue(atTime);
+//        }
+//        else if ( riskClassKey.equals("FX")){
+//            MarginSchemeDeltaVega DeltaScheme = new MarginSchemeDeltaVega(this,"FX",productClassKey,riskType);
+//            deltaMargin = DeltaScheme.getValue(atTime);
+//        }
 
         //MarginSchemeDeltaVega DeltaScheme = new MarginSchemeDeltaVega(this,riskClassKey,productClassKey,riskType);
         return deltaMargin;
@@ -336,7 +336,7 @@ public class CalculationSchemeInitialMarginISDA {
 
 
     public RandomVariableInterface      getVegaMargin(String riskClassKey,String productClassKey,double atTime){
-        MarginSchemeDeltaVega VegaScheme = new MarginSchemeDeltaVega(this,riskClassKey,productClassKey,"vega");
+        // MarginSchemeDeltaVega VegaScheme = new MarginSchemeDeltaVega(this,riskClassKey,productClassKey,"vega");
         return new RandomVariable(0.0);//VegaScheme.getValue(atTime);
     }
 

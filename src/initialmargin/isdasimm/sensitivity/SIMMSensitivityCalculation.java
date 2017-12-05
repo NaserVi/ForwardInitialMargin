@@ -75,7 +75,20 @@ public class SIMMSensitivityCalculation extends AbstractSIMMSensitivityCalculati
                      
                      //for(int i=0; i<maturityBucketSensis.length;i++) System.out.println("mbsensis " + maturityBucketSensis[i].getAverage());
                      break;
+                     
+                 case Interpolation:
 
+                	 maturityBucketSensis = getInterpolatedSensitivities(product, riskClass, curveIndexName, evaluationTime, model);
+
+                	 break;
+                	 
+                 case InterpolationOIS:
+                	 
+                	 if(curveIndexName=="Libor6m") maturityBucketSensis = doCalculateDeltaSensitivitiesIR(product, curveIndexName, evaluationTime, model);
+                	 if(curveIndexName=="OIS") maturityBucketSensis = getInterpolatedSensitivities(product, riskClass, curveIndexName, evaluationTime, model);
+                	 
+                	 break;
+                	 
                  case LinearMelting:
                 	 
                 	 // The time of the sensitivities used for melting     
@@ -93,13 +106,7 @@ public class SIMMSensitivityCalculation extends AbstractSIMMSensitivityCalculati
                 	 //for(int i=0;i<maturityBucketSensis.length;i++) System.out.println("after " + "\t" + evaluationTime + "\t" + maturityBucketSensis[i].getAverage());
                 	 
                 	 
-                	 break;
-                	 
-                 case Interpolation:
-
-                	 maturityBucketSensis = getInterpolatedSensitivities(product, riskClass, curveIndexName, evaluationTime, model);
-
-                	 break;
+                	 break;               	
 
                  default:
                 	 break;

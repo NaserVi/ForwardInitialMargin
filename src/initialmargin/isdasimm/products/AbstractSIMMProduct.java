@@ -47,7 +47,11 @@ public abstract class AbstractSIMMProduct implements SIMMProductInterface {
     protected Map<Long, RandomVariableInterface> gradient = null;// Same for all evaluationTimes; Is reset for different products
     protected boolean isGradientOfDeliveryProduct = false;
     protected RandomVariableInterface exerciseIndicator;
-    protected LIBORModelMonteCarloSimulationInterface model;
+    /*
+     * Model and Product are separate! When we call "getInitialMargin(time, model)", we set modelCache = model! 
+     * Thus, we can check if the model has changed. If it has changed, we have to re-calculate the gradient and clear the sensitivity maps.
+     */
+    protected LIBORModelMonteCarloSimulationInterface modelCache; 
     protected double lastEvaluationTime = -1;
     protected ConditionalExpectationEstimatorInterface conditionalExpectationOperator;
     protected AbstractSIMMSensitivityCalculation sensitivityCalculationScheme;
@@ -59,30 +63,28 @@ public abstract class AbstractSIMMProduct implements SIMMProductInterface {
     // Define the sensitivity maps.
     /**
      *  The map of delta sensitivities at a specific time. This map is filled once per evaluation time step and the
-     *  function <code> getSensitivity <code> defined in class <code> AbstractSIMMProduct <code> which is called in
-     *  <code> SIMMSchemeIRDelta <code> picks the sensitivies for a specified riskClass, curveIndexName and maturityBucket
+     *  function <code> getSensitivity <code> defined in class <code> AbstractSIMMProduct </code> which is called in
+     *  <code> MarginSchemeIRDelta </code> picks the sensitivies for a specified riskClass, curveIndexName and maturityBucket
      *  from this map. This map may - in contrast to the second map "exactDeltaCache" - contain interpolated sensitivities.
      */
     private HashMap<String/*RiskClass*/,List<HashMap<String/*curveIndexName*/,
             HashMap<String/*maturityBucket*/,RandomVariableInterface>>>> deltaAtTime = new HashMap<String,List<HashMap<String,HashMap<String,RandomVariableInterface>>>>(); // currently only for InterestRate riskClass
     
     /**
-     * The cache for the exact delta sensitivities as given by AAD (or analytic).
+     * The cache for the exact delta sensitivities as given by AAD (or analytic). Unlike the map
+     * "deltaAtTime", this map is not cleared if evaluationTime differs from lastEvaluationTime
      */
     private HashMap<Double /*time*/,List<HashMap<String/*RiskClass*/,List<HashMap<String/*curveIndexName*/,
             RandomVariableInterface[]>>>>> exactDeltaCache = new HashMap<Double /*time*/,List<HashMap<String/*RiskClass*/,List<HashMap<String/*curveIndexName*/,RandomVariableInterface[]>>>>>();
     
-    
-    @SuppressWarnings("unused")
-	private RandomVariableInterface vegaSensitivity=null; 
+	//private RandomVariableInterface vegaSensitivity=null; 
     
     /**
      * The cache of numeraire adjustments used in the evaluation of this product in the <code> LIBORMarketModel <code>.
      * This data is the basis of the OIS curve sensitivities, which we calculate by applying AAD to the numeraire adjustments
      */
     protected Map<Double,RandomVariableInterface> numeraireAdjustmentMap = new HashMap<>();
-    
-    
+    public static boolean isPrintSensis = false;
     
     /**Wraps an <code> AbstractLIBORMonteCarloProduct </code> into a product classified according to the SIMM methodology requirement.
      * 
@@ -112,7 +114,7 @@ public abstract class AbstractSIMMProduct implements SIMMProductInterface {
     
     @Override
     public RandomVariableInterface getInitialMargin(double evaluationTime, LIBORModelMonteCarloSimulationInterface model, String calculationCCY) throws CalculationException{
-    	return getInitialMargin(evaluationTime, model, calculationCCY, SensitivityMode.Exact, WeightMode.Constant, 0, true);
+    	return getInitialMargin(evaluationTime, model, calculationCCY, SensitivityMode.Exact, WeightMode.Constant, 0, true, false, true);
     }
  	
  	public RandomVariableInterface getInitialMargin(double evaluationTime, 
@@ -120,20 +122,20 @@ public abstract class AbstractSIMMProduct implements SIMMProductInterface {
  			                                        String calculationCCY,
  			                                        SensitivityMode sensitivityMode,
  			                                        WeightMode liborWeightMode,
- 			                                        double interpolationStep,
- 			                                        boolean isUseAnalyticSensis) throws CalculationException{
+ 			                                        double interpolationStep, 			                                        
+ 			                                        boolean isUseTimeGridAdjustment, boolean isUseAnalyticSwapSensis, boolean isConsiderOISSensitivities) throws CalculationException{
  		
  		if(evaluationTime >= getFinalMaturity()) return new RandomVariable(0.0);
  		
- 		if(this.model==null || !model.equals(this.model) || (sensitivityCalculationScheme!=null && (sensitivityMode !=sensitivityCalculationScheme.getSensitivityMode() || liborWeightMode !=sensitivityCalculationScheme.getWeightMode()))) { // At inception (t=0) or if the model is reset            
- 	        setModel(model); // Set the (new) model. The method setModel also clears the sensitivity maps and the gradient.
+ 		if(this.modelCache==null || !model.equals(this.modelCache) || (sensitivityCalculationScheme!=null && (sensitivityMode !=sensitivityCalculationScheme.getSensitivityMode() || liborWeightMode !=sensitivityCalculationScheme.getWeightMode()))) { // At inception (t=0) or if the model is reset            
+ 	        setGradient(model); // Set the (new) gradient. The method setModel also clears the sensitivity maps and sets the model as modelCache.
  	        this.exerciseIndicator = null;
  	        this.exactDeltaCache.clear();
- 	        this.sensitivityCalculationScheme = new SIMMSensitivityCalculation(sensitivityMode, liborWeightMode, interpolationStep, model, isUseAnalyticSensis);
+ 	        this.sensitivityCalculationScheme = new SIMMSensitivityCalculation(sensitivityMode, liborWeightMode, interpolationStep, model, isUseTimeGridAdjustment, isUseAnalyticSwapSensis, isConsiderOISSensitivities);
  			this.simmScheme= new CalculationSchemeInitialMarginISDA(this,calculationCCY);
  		}
  		
- 		return simmScheme.getValue(evaluationTime);
+ 		return simmScheme.getValue(evaluationTime); 
  	}
      
  	
@@ -144,7 +146,7 @@ public abstract class AbstractSIMMProduct implements SIMMProductInterface {
              									  String curveIndexName, // null if riskClass is not IR
              									  String bucketKey,      // currency for IR otherwise bucket number
              									  String riskType, double evaluationTime) throws SolverException, CloneNotSupportedException, CalculationException{
-double quantile = 0.975;
+
          RandomVariableInterface result = null;	RandomVariableInterface[] maturityBucketSensis; // Sensitivities mapped on the SIMM Buckets
 
          if(!hasOptionality && riskType!="delta") return new RandomVariable(0.0);		   
@@ -164,9 +166,11 @@ double quantile = 0.975;
                          if(!deltaAtTime.containsKey(riskClass) || !deltaAtTime.get(riskClass).stream().filter(n-> n.containsKey(curveIndexName)).findAny().isPresent()){
 
                             // The sensitivities need to be calculated for the given riskClass and riskType                     	            		                     
-                            maturityBucketSensis = sensitivityCalculationScheme.getDeltaSensitivitiesIR(this, riskClass, curveIndexName, evaluationTime, model);
+                            maturityBucketSensis = sensitivityCalculationScheme.getDeltaSensitivitiesIR(this, riskClass, curveIndexName, evaluationTime, modelCache);
                                              
-                            //if(curveIndexName=="Libor6m") System.out.println(evaluationTime + "\t" + maturityBucketSensis[3].getQuantile(quantile) + "\t" + maturityBucketSensis[4].getQuantile(quantile) + "\t"+ maturityBucketSensis[5].getQuantile(quantile) + "\t"+ maturityBucketSensis[6].getQuantile(quantile) + "\t"+ maturityBucketSensis[7].getQuantile(quantile) + "\t"+ maturityBucketSensis[8].getQuantile(quantile) + "\t"+maturityBucketSensis[9].getQuantile(quantile) + "\t"+maturityBucketSensis[10].getQuantile(quantile) + "\t"+maturityBucketSensis[11].getQuantile(quantile));
+                            if(isPrintSensis && curveIndexName=="Libor6m") {                            	
+                            	System.out.println(evaluationTime + "\t" + maturityBucketSensis[3].getAverage() + "\t" + maturityBucketSensis[4].getAverage() + "\t"+ maturityBucketSensis[5].getAverage() + "\t"+ maturityBucketSensis[6].getAverage() + "\t"+ maturityBucketSensis[7].getAverage() + "\t"+ maturityBucketSensis[8].getAverage() + "\t"+maturityBucketSensis[9].getAverage() + "\t"+maturityBucketSensis[10].getAverage() + "\t"+maturityBucketSensis[11].getAverage());
+                            }
                             // Create a new element of the curveIndex List for given risk class		         
                             HashMap<String,HashMap<String,RandomVariableInterface>> curveIndexNameexactDeltaCache = new HashMap<String,HashMap<String,RandomVariableInterface>>();
                             HashMap<String,RandomVariableInterface> bucketSensitivities = new HashMap<String,RandomVariableInterface>();
@@ -185,13 +189,14 @@ double quantile = 0.975;
                          result = deltaAtTime.get(riskClass).stream().filter(n -> n.containsKey(curveIndexName)).findFirst().get().get(curveIndexName).get(maturityBucket);			                  
                     } else result = new RandomVariable(0.0); // There exists no delta Sensi for risk Class InterestRate
                     break;
-                    case("CreditQ"):
+                    // @Todo Add sensitivity calculation for the subsequent cases
+                    case("CreditQ"): 
                     case("CreditNonQ"):
                     case("FX"):
                     case("Commodity"):
                     case("Equity"): result = null;
                   } break;
-
+             // @Todo Add sensitivity calculation for the subsequent cases
              case("vega"): 
              case("curvature"):
                 switch(riskClass){
@@ -218,9 +223,9 @@ double quantile = 0.975;
      */
  	public Map<Double, RandomVariableInterface> getNumeraireAdjustmentMap() throws CalculationException{
 	   if(this.numeraireAdjustmentMap==null) {
-		  model.clearNumeraireAdjustmentCache();
-		  getLIBORMonteCarloProduct().getValue(0.0,model);
-		  this.numeraireAdjustmentMap = model.getNumeraireAdjustmentMap();
+		  modelCache.clearNumeraireAdjustmentCache();
+		  getLIBORMonteCarloProduct().getValue(0.0,modelCache);
+		  this.numeraireAdjustmentMap = modelCache.getNumeraireAdjustmentMap();
 	   }
 	   return this.numeraireAdjustmentMap;
 	}
@@ -230,11 +235,11 @@ double quantile = 0.975;
 		  
  	   if(gradient==null) {
 	      // Clear cache of numeraire adjustments of the model to capture the numeraire adjustments from the product valuation
-		  model.clearNumeraireAdjustmentCache();		
+		  modelCache.clearNumeraireAdjustmentCache();		
 		  // Calculate the product value as of time 0.
-		  RandomVariableDifferentiableInterface productValue = (RandomVariableDifferentiableInterface) getLIBORMonteCarloProduct().getValue(0.0, model);		     
+		  RandomVariableDifferentiableInterface productValue = (RandomVariableDifferentiableInterface) getLIBORMonteCarloProduct().getValue(0.0, modelCache);		     
 		  // Get the map of numeraire adjustments used specifically for this product
-		  this.numeraireAdjustmentMap.putAll(model.getNumeraireAdjustmentMap());			 
+		  this.numeraireAdjustmentMap.putAll(modelCache.getNumeraireAdjustmentMap());			 
 		  // Calculate the gradient
 		  Map<Long, RandomVariableInterface> gradientOfProduct = productValue.getGradient();
 		  this.gradient = gradientOfProduct;
@@ -436,7 +441,7 @@ double quantile = 0.975;
  	 */
 	public void clearMaps(){
 		   if(this.deltaAtTime!=null) this.deltaAtTime.clear();
-		   this.vegaSensitivity = null;
+		   //this.vegaSensitivity = null;
 	}
 	
 	@Override
@@ -444,7 +449,7 @@ double quantile = 0.975;
     
     	if(!exactDeltaCache.containsKey(time) || !exactDeltaCache.get(time).stream().filter(n->n.containsKey(riskClass)).findAny().isPresent()){
         	
-    		for(String curveName : curveIndexNames) setExactDeltaCache(riskClass, curveName, time, model);
+    		for(String curveName : curveIndexNames) setExactDeltaCache(riskClass, curveName, time, modelCache);
         
     	}
     	
@@ -457,15 +462,15 @@ double quantile = 0.975;
      * Getters and setters
      */
     
-    /** Set the libor market model, set the gradient of the product w.r.t. the new model.  
+    /** Set the libor market model in the model cache, set the gradient of the product w.r.t. the new model.  
      * 
      * @param model The libor market model
      * @throws CalculationException
      */
-    public void setModel(LIBORModelMonteCarloSimulationInterface model) throws CalculationException{
+    public void setGradient(LIBORModelMonteCarloSimulationInterface model) throws CalculationException{
     	// If the model is set, we must clear all maps and set the gradient to null.
     	clearMaps(); //...the maps containing sensitivities are reset to null (they have to be recalculated under the new model)
-    	this.model = model;
+    	this.modelCache = model;
     	this.gradient = null;
     	this.gradient = getGradient();
     	this.isGradientOfDeliveryProduct = false; // for (bermudan) swaptions
