@@ -67,8 +67,8 @@ public class SIMMTest {
 
 	final static boolean isCalculatePortfolio = false;
 	final static boolean isCalculateSwap      = false;
-	final static boolean isCalculateSwaption  = true;
-	final static boolean isCalculateBermudan  = false;
+	final static boolean isCalculateSwaption  = false;
+	final static boolean isCalculateBermudan  = true;
 
 	public static void main(String[] args) throws CalculationException{
 
@@ -86,7 +86,7 @@ public class SIMMTest {
 				new double[] {0.02, 0.02, 0.02, 0.02, 0.02},
 				0.5/* tenor / period length */);
 
-		LIBORModelMonteCarloSimulationInterface model = createLIBORMarketModel(false,randomVariableFactory,100/*numberOfPaths*/, 1 /*numberOfFactors*/, 
+		LIBORModelMonteCarloSimulationInterface model = createLIBORMarketModel(false,randomVariableFactory,200/*numberOfPaths*/, 1 /*numberOfFactors*/, 
 				discountCurve,
 				forwardCurve,0.0 /* Correlation */);
 
@@ -111,7 +111,7 @@ public class SIMMTest {
 		 *  Create Products. Input for (Bermudan) Swaption
 		 */
 		double     exerciseTime     = 5.0;	// Exercise date //5
-		double     constantSwapRate = -0.025;
+		double     constantSwapRate = 0.025;
 		int        numberOfPeriods  = 10;//20;
 		double     notional         = 100;
 		double[]   fixingDates     = new double[numberOfPeriods];
@@ -158,7 +158,7 @@ public class SIMMTest {
 		boolean isUseAnalyticSwapSensis = false;
 		boolean isUseTimeGridAdjustment = true;
 		boolean isConsiderOISSensis     = true;
-
+        // time measurement variables
 		long timeStart;
 		long timeEnd;
 
@@ -169,6 +169,7 @@ public class SIMMTest {
 
 
 		// Portfolio
+		
 		if(isCalculatePortfolio){
 			RandomVariableInterface[][] valuesPortfolio = new RandomVariableInterface[4][(int)(finalIMTime/timeStep)+1];
 
@@ -209,6 +210,7 @@ public class SIMMTest {
 				}
 			}
 		}
+		
 		// Swap
 
 		if(isCalculateSwap){
@@ -325,7 +327,7 @@ public class SIMMTest {
 			RandomVariableInterface[][] valuesBermudan = new RandomVariableInterface[4][(int)(finalIMTime/timeStep)+1];
 
 			timeStart = System.currentTimeMillis();
-			for(int i=0;i<finalIMTime/timeStep+1;i++) valuesBermudan[0][i] = SIMMBermudan.getInitialMargin(i*timeStep, model, "EUR", SensitivityMode.LinearMelting, WeightMode.Constant, 1.0, isUseTimeGridAdjustment, true, isConsiderOISSensis);
+			for(int i=0;i<finalIMTime/timeStep+1;i++) valuesBermudan[0][i] = SIMMBermudan.getInitialMargin(i*timeStep, model, "EUR", SensitivityMode.Exact, WeightMode.Constant, 1.0, isUseTimeGridAdjustment, true, isConsiderOISSensis);
 			timeEnd = System.currentTimeMillis();
 
 			System.out.println("Time for BERMUDAN, AAD in every step, constant weights: " + formatterTime.format((timeEnd-timeStart)/1000.0)+"s");
@@ -405,7 +407,7 @@ public class SIMMTest {
 		/*
 		 * Create a volatility structure v[i][j] = sigma_j(t_i)
 		 */
-		double a = 0.0 / 20.0, b = 0.0, c = 0.25, d = 0.3 / 20.0 / 2.0;
+		//double a = 0.0 / 20.0, b = 0.0, c = 0.25, d = 0.3 / 20.0 / 2.0;
 		//LIBORVolatilityModel volatilityModel = new LIBORVolatilityModelFourParameterExponentialFormIntegrated(timeDiscretization, liborPeriodDiscretization, a, b, c, d, false);		
 		/*		LIBORVolatilityModel volatilityModel = new LIBORVolatilityModelFourParameterExponentialForm(randomVariableFactory, timeDiscretization, liborPeriodDiscretization, a, b, c, d, false);
 		double[][] volatilityMatrix = new double[timeDiscretization.getNumberOfTimeSteps()][liborPeriodDiscretization.getNumberOfTimeSteps()];
@@ -492,10 +494,6 @@ public class SIMMTest {
 			return new TermStructureModelMonteCarloSimulation(liborMarketModel, process);
 		}
 	}
-
-
-
-
 
 
 	public static AbstractLIBORMonteCarloProduct[] createSwaps(String[] maturities){

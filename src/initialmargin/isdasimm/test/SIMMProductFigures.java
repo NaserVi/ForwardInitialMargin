@@ -1,7 +1,5 @@
 package initialmargin.isdasimm.test;
 
-import java.util.Arrays;
-
 import initialmargin.isdasimm.changedfinmath.LIBORModelMonteCarloSimulationInterface;
 import initialmargin.isdasimm.products.AbstractSIMMProduct;
 import initialmargin.isdasimm.sensitivity.AbstractSIMMSensitivityCalculation.SensitivityMode;
@@ -57,7 +55,7 @@ public class SIMMProductFigures {
 	private void doCalculateIM() throws CalculationException{
 	   this.forwardIM = new RandomVariableInterface[(int)(finalTime/timeStep)+1];
 	   for(int i=0;i<=(int)(finalTime/timeStep);i++) {
-		   forwardIM[i] = product.getInitialMargin(i*timeStep, model, "EUR", sensitivityMode, weightMode, interpolationStep, true, isUseAnalyticSensitivities, true);
+		   forwardIM[i] = product.getInitialMargin(i*timeStep, model, "EUR", sensitivityMode, weightMode, interpolationStep, true /* isUseTimeGridAdjustment */, isUseAnalyticSensitivities, true /* isConsiderOISSensis */);
 	   }
     }
 	

@@ -29,7 +29,7 @@ public abstract class AbstractSIMMSensitivityCalculation {
     	LinearMelting,
     	Interpolation,
     	Exact, // AAD or Analytic (for Swaps)
-    	InterpolationOIS
+    	InterpolationOIS // Interpolate OIS sensitivities only 
     }
     
     protected SensitivityMode sensitivityMode;
@@ -84,18 +84,18 @@ public abstract class AbstractSIMMSensitivityCalculation {
 	 * @throws CloneNotSupportedException
 	 * @throws CalculationException
 	 */
-	public abstract RandomVariableInterface[] getDeltaSensitivitiesIR(AbstractSIMMProduct product,
-															 		  String riskClass, 
-															 		  String curveIndexName,
-															 		  double evaluationTime, 
-															 		  LIBORModelMonteCarloSimulationInterface model) throws SolverException, CloneNotSupportedException, CalculationException;
+	public abstract RandomVariableInterface[] getDeltaSensitivities(AbstractSIMMProduct product,
+															 		String riskClass, 
+															 		String curveIndexName,
+															 		double evaluationTime, 
+															 		LIBORModelMonteCarloSimulationInterface model) throws SolverException, CloneNotSupportedException, CalculationException;
 		
 		
 	/**
 	 * 
 	 * @param product The product
-	 * @param riskClass The risk class of the product
 	 * @param curveIndexName The name of the curve
+	 * @param riskClass The risk class for the sensitivity calculation
 	 * @param evaluationTime The time at which the sensitivities should be calculated
 	 * @param model The Libor market model
 	 * @return The delta sensitivities calculated by AAD
@@ -103,11 +103,11 @@ public abstract class AbstractSIMMSensitivityCalculation {
 	 * @throws CloneNotSupportedException
 	 * @throws CalculationException
 	 */
-	public abstract RandomVariableInterface[] getExactDeltaSensitivitiesIR(AbstractSIMMProduct product,
-			 															   String riskClass, 
-			 															   String curveIndexName,
-			 															   double evaluationTime, 
-			 															   LIBORModelMonteCarloSimulationInterface model) throws SolverException, CloneNotSupportedException, CalculationException;
+	public abstract RandomVariableInterface[] getExactDeltaSensitivities(AbstractSIMMProduct product,
+			 															 String curveIndexName,
+			 															 String riskClass,
+			 															 double evaluationTime, 
+			 															 LIBORModelMonteCarloSimulationInterface model) throws SolverException, CloneNotSupportedException, CalculationException;
     
 	/** Get the sensitivities using sensitivity melting on SIMM Buckets. 
 	 * 
@@ -182,7 +182,8 @@ public abstract class AbstractSIMMSensitivityCalculation {
  	
  	
  	/**Calculate the sensitivities of the value of a product w.r.t. swap rates given the Libor sensitivities dV/dL
-	 * 
+	 * This is the mapping of libor sensitivities dV/dL to (SIMM) model sensitivities dV/dS.
+	 *  
 	 * @param evaluationTime The time of evaluation
 	 * @param dVdL The vector of derivatives dV/dL = dV/dL_0,...,dV/dL_n
 	 * @param model The Libor Market Model
@@ -213,6 +214,7 @@ public abstract class AbstractSIMMSensitivityCalculation {
 		}
 		return delta;
 	 }
+	
 	
 	/**Performs rebucketing of sensitivities to the SIMM buckets by linear interpolation (Source: Master Thesis of Jamal Issa, modified).
 	 * 
@@ -305,26 +307,25 @@ public abstract class AbstractSIMMSensitivityCalculation {
 	 * 
 	 * @param evaluationTime The time at which the initial margin is calculated
 	 * @param model The Libor market model
-	 * @param timeSteps The time steps of the swap (between payment dates)
 	 * @return The sensitivity of the discount curve (bonds) wrt to swap rates of the same curve.
 	 * @throws CalculationException 
 	 */
 	public static RandomVariableInterface[][] getBondSwapSensitivity(double evaluationTime, 
-															   LIBORModelMonteCarloSimulationInterface model, 
-															   double[] timeSteps) throws CalculationException{
-		int numberOfBonds = timeSteps.length;
+															   LIBORModelMonteCarloSimulationInterface model) throws CalculationException{
+		int numberOfBonds = getNumberOfRemainingLibors(evaluationTime, model);
+		double timeStep = model.getLiborPeriodDiscretization().getTimeStep(0);
 		double bondTime = evaluationTime;
 		RandomVariableInterface sum= new RandomVariable(0.0);
 		RandomVariableInterface[][] dSdP = new RandomVariableInterface[numberOfBonds][numberOfBonds];
 		
 		for(int swapIndex=0;swapIndex<dSdP.length;swapIndex++){
-			bondTime += timeSteps[swapIndex];
+			bondTime += timeStep;
 			RandomVariableInterface bondOIS = model.getForwardBondOIS(bondTime /*T*/,evaluationTime /*t*/); //P^OIS(T;t)
-		    sum = sum.addProduct(bondOIS,timeSteps[swapIndex]);
+		    sum = sum.addProduct(bondOIS,timeStep);
 		    for(int bondIndex=0;bondIndex<dSdP.length;bondIndex++){
 		    	if(swapIndex<bondIndex) dSdP[swapIndex][bondIndex] = new RandomVariable(0.0);
-		    	else if(swapIndex==bondIndex) dSdP[swapIndex][bondIndex] = sum.mult(-1.0).sub(timeSteps[swapIndex]).addProduct(bondOIS,timeSteps[swapIndex]).div(sum.squared());
-		    	else dSdP[swapIndex][bondIndex] = bondOIS.sub(1.0).mult(timeSteps[bondIndex]).div(sum.squared());    			    	
+		    	else if(swapIndex==bondIndex) dSdP[swapIndex][bondIndex] = sum.mult(-1.0).sub(timeStep).addProduct(bondOIS,timeStep).div(sum.squared());
+		    	else dSdP[swapIndex][bondIndex] = bondOIS.sub(1.0).mult(timeStep).div(sum.squared());    			    	
 		    }
 		} 
 

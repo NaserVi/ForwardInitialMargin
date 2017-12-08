@@ -28,9 +28,9 @@ public class SIMMSimpleSwap extends AbstractSIMMProduct{
 	
 	/** Construct a swap as a product for the SIMM. Initial margin and MVA can be calculated for this product.
 	 * 
-	 * @param swap
-	 * @param curveIndexNames
-	 * @param currency
+	 * @param swap The swap as AbstractLIBORMonteCarloProduct
+	 * @param curveIndexNames The names of the curves for this swap
+	 * @param currency The currency of this swap
 	 */
 	public SIMMSimpleSwap(SimpleSwap swap, String[] curveIndexNames, String currency) {
         super(productClass, riskClass, curveIndexNames, currency, null /*bucketKey*/, false /*hasOptionality*/);
@@ -60,7 +60,7 @@ public class SIMMSimpleSwap extends AbstractSIMMProduct{
 	}
 	
 	
-	/** Calculate Swap Sensitivities dV/dL analytically for a Swap 
+	/** Calculate Swap Sensitivities dV/dL (Libor) or dV/dP (OIS) analytically for a Swap 
 	 * 
 	 * @param evaluationTime The time of evaluation
 	 * @param fixingDates The fixing times of the swap floating leg
@@ -85,7 +85,7 @@ public class SIMMSimpleSwap extends AbstractSIMMProduct{
 			int periodIndex = new TimeDiscretization(fixingDates).getTimeIndexNearestLessOrEqual(evaluationTime); 
 			periodIndex = periodIndex < 0 ? 0 : periodIndex;
 			
-			//  firstLiborIndex: Index of the Libor on the first period of the swap
+			// firstLiborIndex: Index of the Libor on the first period of the swap
 			int currentLiborIndex = model.getLiborPeriodDiscretization().getTimeIndexNearestLessOrEqual(evaluationTime);
 			int firstLiborIndex   = fixingDates[0] > evaluationTime ? model.getLiborPeriodDiscretization().getTimeIndexNearestLessOrEqual(fixingDates[0]):currentLiborIndex;
             

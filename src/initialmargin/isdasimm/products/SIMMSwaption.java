@@ -171,8 +171,8 @@ public class SIMMSwaption extends AbstractSIMMProduct{
 		
 		// Create a conditional expectation estimator with some basis functions (predictor variables) for conditional expectation estimation.
         RandomVariableInterface[] regressor = new RandomVariableInterface[2];
-        regressor[0]= modelCache.getLIBOR(evaluationTime, evaluationTime,evaluationTime+modelCache.getLiborPeriodDiscretization().getTimeStep(0)).mult(indicator);
-		regressor[1]= modelCache.getLIBOR(evaluationTime, evaluationTime, modelCache.getLiborPeriodDiscretization().getTime(modelCache.getNumberOfLibors()-1)).mult(indicator);
+        regressor[0]= modelCache.getLIBOR(evaluationTime, evaluationTime,evaluationTime+modelCache.getLiborPeriodDiscretization().getTimeStep(0));
+		regressor[1]= modelCache.getLIBOR(evaluationTime, evaluationTime, modelCache.getLiborPeriodDiscretization().getTime(modelCache.getNumberOfLibors()-1));
        	ArrayList<RandomVariableInterface> basisFunctions = getRegressionBasisFunctions(regressor, 2, indicator);
        	this.conditionalExpectationOperator = new MonteCarloConditionalExpectationRegression(basisFunctions.toArray(new RandomVariableInterface[0]));
 

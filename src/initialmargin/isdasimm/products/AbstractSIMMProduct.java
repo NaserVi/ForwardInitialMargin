@@ -123,7 +123,9 @@ public abstract class AbstractSIMMProduct implements SIMMProductInterface {
  			                                        SensitivityMode sensitivityMode,
  			                                        WeightMode liborWeightMode,
  			                                        double interpolationStep, 			                                        
- 			                                        boolean isUseTimeGridAdjustment, boolean isUseAnalyticSwapSensis, boolean isConsiderOISSensitivities) throws CalculationException{
+ 			                                        boolean isUseTimeGridAdjustment, 
+ 			                                        boolean isUseAnalyticSwapSensis, 
+ 			                                        boolean isConsiderOISSensitivities) throws CalculationException{
  		
  		if(evaluationTime >= getFinalMaturity()) return new RandomVariable(0.0);
  		
@@ -166,7 +168,7 @@ public abstract class AbstractSIMMProduct implements SIMMProductInterface {
                          if(!deltaAtTime.containsKey(riskClass) || !deltaAtTime.get(riskClass).stream().filter(n-> n.containsKey(curveIndexName)).findAny().isPresent()){
 
                             // The sensitivities need to be calculated for the given riskClass and riskType                     	            		                     
-                            maturityBucketSensis = sensitivityCalculationScheme.getDeltaSensitivitiesIR(this, riskClass, curveIndexName, evaluationTime, modelCache);
+                            maturityBucketSensis = sensitivityCalculationScheme.getDeltaSensitivities(this, riskClass, curveIndexName, evaluationTime, modelCache);
                                              
                             if(isPrintSensis && curveIndexName=="Libor6m") {                            	
                             	System.out.println(evaluationTime + "\t" + maturityBucketSensis[3].getAverage() + "\t" + maturityBucketSensis[4].getAverage() + "\t"+ maturityBucketSensis[5].getAverage() + "\t"+ maturityBucketSensis[6].getAverage() + "\t"+ maturityBucketSensis[7].getAverage() + "\t"+ maturityBucketSensis[8].getAverage() + "\t"+maturityBucketSensis[9].getAverage() + "\t"+maturityBucketSensis[10].getAverage() + "\t"+maturityBucketSensis[11].getAverage());
@@ -263,7 +265,7 @@ public abstract class AbstractSIMMProduct implements SIMMProductInterface {
  				                   double time, LIBORModelMonteCarloSimulationInterface model) throws SolverException, CloneNotSupportedException, CalculationException{
  			
        // Calculate the sensitivities 
- 	   RandomVariableInterface[] deltaSensis = sensitivityCalculationScheme.getExactDeltaSensitivitiesIR(this, riskClass, curveIndexName, time, model);
+ 	   RandomVariableInterface[] deltaSensis = sensitivityCalculationScheme.getExactDeltaSensitivities(this, curveIndexName, riskClass, time, model);
  			
  	   // Create a new element of the curveIndex List for given risk class		         
  	   HashMap<String,RandomVariableInterface[]> curveIndexNameDeltaCache = new HashMap<String,RandomVariableInterface[]>();
@@ -362,7 +364,7 @@ public abstract class AbstractSIMMProduct implements SIMMProductInterface {
  	 * @throws CalculationException
  	 */
     protected RandomVariableInterface[] getDiscountCurveSensitivities(double evaluationTime, double[] futureDiscountTimes, 
-    		                                                          RandomVariableInterface[] dVdP, String riskClass, LIBORModelMonteCarloSimulationInterface model) throws CalculationException{
+    		                                                             RandomVariableInterface[] dVdP, String riskClass, LIBORModelMonteCarloSimulationInterface model) throws CalculationException{
        
        if(dVdP == null || futureDiscountTimes == null){ //i.e. need to calculate it with AAD
        
@@ -428,9 +430,7 @@ public abstract class AbstractSIMMProduct implements SIMMProductInterface {
 	   dVdP = AbstractSIMMSensitivityCalculation.multiply(dVdP,dPdP);
 	
 	   // Calculate dP(t+i\Delta_T;t)/dS_i(t) and dV(t)/dS_i(t)
-	   double[] timeSteps = new double[dVdP.length];
-	   Arrays.fill(timeSteps, deltaT);
-	   RandomVariableInterface[][] dPdS = AbstractSIMMSensitivityCalculation.getBondSwapSensitivity(evaluationTime,model,timeSteps);
+	   RandomVariableInterface[][] dPdS = AbstractSIMMSensitivityCalculation.getBondSwapSensitivity(evaluationTime,model);
 	   RandomVariableInterface[]   dVdS = AbstractSIMMSensitivityCalculation.multiply(dVdP,dPdS);
 	
 	   return AbstractSIMMSensitivityCalculation.mapSensitivitiesOnBuckets(dVdS, riskClass, null, model);

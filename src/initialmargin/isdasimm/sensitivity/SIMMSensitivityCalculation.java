@@ -59,11 +59,11 @@ public class SIMMSensitivityCalculation extends AbstractSIMMSensitivityCalculati
     
     
 	@Override
-    public RandomVariableInterface[] getDeltaSensitivitiesIR(AbstractSIMMProduct product,
-			 												 String riskClass, 
-			 												 String curveIndexName,
-			 												 double evaluationTime, 
-			 												 LIBORModelMonteCarloSimulationInterface model) throws SolverException, CloneNotSupportedException, CalculationException{
+    public RandomVariableInterface[] getDeltaSensitivities(AbstractSIMMProduct product,
+			 											   String riskClass, 
+			 											   String curveIndexName,
+			 											   double evaluationTime, 
+			 											   LIBORModelMonteCarloSimulationInterface model) throws SolverException, CloneNotSupportedException, CalculationException{
 
              RandomVariableInterface[] maturityBucketSensis = null;
 
@@ -117,11 +117,12 @@ public class SIMMSensitivityCalculation extends AbstractSIMMSensitivityCalculati
 	}
 	
 	@Override
-	public RandomVariableInterface[] getExactDeltaSensitivitiesIR(AbstractSIMMProduct product, String riskClass, String curveIndexName,
-			 													  double evaluationTime, LIBORModelMonteCarloSimulationInterface model) throws SolverException, CloneNotSupportedException, CalculationException{
+	public RandomVariableInterface[] getExactDeltaSensitivities(AbstractSIMMProduct product, String curveIndexName, String riskClass,
+			 													double evaluationTime, LIBORModelMonteCarloSimulationInterface model) throws SolverException, CloneNotSupportedException, CalculationException{
 
-			return doCalculateDeltaSensitivitiesIR(product, curveIndexName, evaluationTime, model);
-
+		//@Todo: Distinguish different risk classes. Works currently only for "InterestRate"
+	    return doCalculateDeltaSensitivitiesIR(product, curveIndexName, evaluationTime, model);
+		
     }
 	
 	
