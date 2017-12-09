@@ -46,9 +46,11 @@ import net.finmath.montecarlo.interestrate.modelplugins.AbstractLIBORCovarianceM
 import net.finmath.montecarlo.interestrate.modelplugins.DisplacedLocalVolatilityModel;
 //import net.finmath.montecarlo.interestrate.TermStructureModelInterface;
 import net.finmath.montecarlo.interestrate.modelplugins.LIBORCorrelationModelExponentialDecay;
-import net.finmath.montecarlo.interestrate.modelplugins.LIBORCovarianceModelFromVolatilityAndCorrelation;
-import net.finmath.montecarlo.interestrate.modelplugins.LIBORVolatilityModel;
-import net.finmath.montecarlo.interestrate.modelplugins.LIBORVolatilityModelFromGivenMatrix;
+//import net.finmath.montecarlo.interestrate.modelplugins.LIBORVolatilityModelFromGivenMatrix;
+import initialmargin.isdasimm.changedfinmath.modelplugins.LIBORCovarianceModelFromVolatilityAndCorrelation;
+import initialmargin.isdasimm.changedfinmath.modelplugins.LIBORVolatilityModel;
+import initialmargin.isdasimm.changedfinmath.modelplugins.LIBORVolatilityModelFromGivenMatrix;
+//import initialmargin.isdasimm.changedfinmath.modelplugins.LIBORVolatilityModelFromGivenMatrix;
 import net.finmath.montecarlo.interestrate.modelplugins.TermStructCovarianceModelFromLIBORCovarianceModelParametric;
 import net.finmath.montecarlo.process.ProcessEulerScheme;
 import net.finmath.stochastic.RandomVariableInterface;
@@ -489,16 +491,17 @@ public class SIMMTest {
 
 		} else {
 
-			TimeDiscretizationInterface liborPeriodDiscretizationFine = new TimeDiscretization(0.0, 40.0, 0.0625, ShortPeriodLocation.SHORT_PERIOD_AT_START);
-			TimeDiscretizationInterface liborPeriodDiscretizationMedium = new TimeDiscretization(0.0, 40.0, 0.25, ShortPeriodLocation.SHORT_PERIOD_AT_START);
-			TimeDiscretizationInterface liborPeriodDiscretizationCoarse = new TimeDiscretization(0.0, 40.0, 4.0, ShortPeriodLocation.SHORT_PERIOD_AT_START);
-			TermStructureModelInterface liborMarketModel = new LIBORMarketModelWithTenorRefinement(
-					new TimeDiscretizationInterface[] { liborPeriodDiscretizationFine, liborPeriodDiscretizationMedium, liborPeriodDiscretizationCoarse },
-					new Integer[] { 4, 8, 200 },
-					null,
-					forwardCurve, appliedDiscountCurve, new TermStructCovarianceModelFromLIBORCovarianceModelParametric(null, covarianceModel),
-					null /*calibrationItems*/, properties);
-			return new TermStructureModelMonteCarloSimulation(liborMarketModel, process);
+//			TimeDiscretizationInterface liborPeriodDiscretizationFine = new TimeDiscretization(0.0, 40.0, 0.0625, ShortPeriodLocation.SHORT_PERIOD_AT_START);
+//			TimeDiscretizationInterface liborPeriodDiscretizationMedium = new TimeDiscretization(0.0, 40.0, 0.25, ShortPeriodLocation.SHORT_PERIOD_AT_START);
+//			TimeDiscretizationInterface liborPeriodDiscretizationCoarse = new TimeDiscretization(0.0, 40.0, 4.0, ShortPeriodLocation.SHORT_PERIOD_AT_START);
+//			TermStructureModelInterface liborMarketModel = new LIBORMarketModelWithTenorRefinement(
+//					new TimeDiscretizationInterface[] { liborPeriodDiscretizationFine, liborPeriodDiscretizationMedium, liborPeriodDiscretizationCoarse },
+//					new Integer[] { 4, 8, 200 },
+//					null,
+//					forwardCurve, appliedDiscountCurve, new TermStructCovarianceModelFromLIBORCovarianceModelParametric(null, covarianceModel),
+//					null /*calibrationItems*/, properties);
+//			return new TermStructureModelMonteCarloSimulation(liborMarketModel, process);
+			return null;
 		}
 	}
 

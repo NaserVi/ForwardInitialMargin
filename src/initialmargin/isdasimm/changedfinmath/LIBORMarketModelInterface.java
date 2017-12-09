@@ -1,6 +1,6 @@
 package initialmargin.isdasimm.changedfinmath;
 
-import net.finmath.montecarlo.interestrate.modelplugins.AbstractLIBORCovarianceModel;
+import initialmargin.isdasimm.changedfinmath.modelplugins.AbstractLIBORCovarianceModel;
 
 public interface LIBORMarketModelInterface extends LIBORModelInterface {
 

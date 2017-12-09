@@ -22,7 +22,7 @@ import net.finmath.marketdata.products.SwapAnnuity;
 import net.finmath.montecarlo.AbstractRandomVariableFactory;
 import net.finmath.montecarlo.RandomVariable;
 import net.finmath.montecarlo.RandomVariableFactory;
-import net.finmath.montecarlo.interestrate.modelplugins.AbstractLIBORCovarianceModel;
+import initialmargin.isdasimm.changedfinmath.modelplugins.AbstractLIBORCovarianceModel;
 import initialmargin.isdasimm.changedfinmath.modelplugins.AbstractLIBORCovarianceModelParametric;
 import initialmargin.isdasimm.changedfinmath.products.AbstractLIBORMonteCarloProduct;
 //import net.finmath.montecarlo.interestrate.products.AbstractLIBORMonteCarloProduct;
