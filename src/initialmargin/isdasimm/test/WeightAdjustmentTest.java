@@ -47,7 +47,7 @@ public class WeightAdjustmentTest {
 
 		LIBORModelMonteCarloSimulationInterface model = SIMMTest.createLIBORMarketModel(false,randomVariableFactory,numberOfPaths, numberOfFactors, 
 				discountCurve,
-				forwardCurve,0.0 /* Correlation */);
+				forwardCurve);
 
 		// Create another Libor market model with steeper curves
 		DiscountCurve discountCurveSteep = DiscountCurve.createDiscountCurveFromDiscountFactors("discountCurve2",
@@ -60,7 +60,7 @@ public class WeightAdjustmentTest {
 
 		LIBORModelMonteCarloSimulationInterface model2 = SIMMTest.createLIBORMarketModel(false, randomVariableFactory,numberOfPaths, numberOfFactors, 
 				discountCurveSteep,
-				forwardCurveSteep, 0.0 /* Correlation */);
+				forwardCurveSteep);
 
 
 		// Classify the products 

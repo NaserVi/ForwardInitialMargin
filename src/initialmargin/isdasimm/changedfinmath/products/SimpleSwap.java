@@ -10,7 +10,6 @@ import java.util.stream.IntStream;
 
 import initialmargin.isdasimm.changedfinmath.*;
 import net.finmath.exception.CalculationException;
-import net.finmath.montecarlo.RandomVariable;
 import net.finmath.stochastic.RandomVariableInterface;
 
 /**

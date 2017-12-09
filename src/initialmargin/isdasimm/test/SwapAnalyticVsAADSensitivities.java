@@ -11,28 +11,28 @@ import java.util.stream.IntStream;
 import org.junit.Assert;
 import org.junit.Test;
 
-import net.finmath.montecarlo.interestrate.LIBORMarketModel;
-import net.finmath.montecarlo.interestrate.LIBORMarketModelInterface;
-import net.finmath.montecarlo.interestrate.LIBORModelMonteCarloSimulation;
-import net.finmath.montecarlo.interestrate.LIBORModelMonteCarloSimulationInterface;
+import initialmargin.isdasimm.changedfinmath.LIBORMarketModel;
+import initialmargin.isdasimm.changedfinmath.LIBORMarketModelInterface;
+import initialmargin.isdasimm.changedfinmath.LIBORModelMonteCarloSimulation;
+import initialmargin.isdasimm.changedfinmath.LIBORModelMonteCarloSimulationInterface;
+import initialmargin.isdasimm.changedfinmath.modelplugins.LIBORCovarianceModelFromVolatilityAndCorrelation;
+import initialmargin.isdasimm.changedfinmath.modelplugins.LIBORVolatilityModel;
+import initialmargin.isdasimm.changedfinmath.modelplugins.LIBORVolatilityModelFromGivenMatrix;
+import initialmargin.isdasimm.changedfinmath.products.AbstractLIBORMonteCarloProduct;
+import initialmargin.isdasimm.changedfinmath.products.SimpleSwap;
+import initialmargin.isdasimm.changedfinmath.products.Swap;
+import initialmargin.isdasimm.changedfinmath.products.SwapLeg;
+import initialmargin.isdasimm.changedfinmath.products.components.AbstractNotional;
+import initialmargin.isdasimm.changedfinmath.products.components.Notional;
+import initialmargin.isdasimm.changedfinmath.products.indices.AbstractIndex;
+import initialmargin.isdasimm.changedfinmath.products.indices.LIBORIndex;
 import net.finmath.montecarlo.interestrate.modelplugins.LIBORCorrelationModelExponentialDecay;
-import net.finmath.montecarlo.interestrate.modelplugins.LIBORCovarianceModelFromVolatilityAndCorrelation;
-import net.finmath.montecarlo.interestrate.modelplugins.LIBORVolatilityModel;
-import net.finmath.montecarlo.interestrate.modelplugins.LIBORVolatilityModelFromGivenMatrix;
-import net.finmath.montecarlo.interestrate.products.AbstractLIBORMonteCarloProduct;
-import net.finmath.montecarlo.interestrate.products.SimpleSwap;
-import net.finmath.montecarlo.interestrate.products.components.AbstractNotional;
-import net.finmath.montecarlo.interestrate.products.components.Notional;
-import net.finmath.montecarlo.interestrate.products.indices.AbstractIndex;
-import net.finmath.montecarlo.interestrate.products.indices.LIBORIndex;
 import net.finmath.montecarlo.process.ProcessEulerScheme;
 import net.finmath.marketdata.model.curves.DiscountCurveInterface;
 import net.finmath.exception.CalculationException;
 import net.finmath.marketdata.model.curves.DiscountCurve;
 import net.finmath.marketdata.model.curves.DiscountCurveFromForwardCurve;
 import net.finmath.marketdata.model.curves.ForwardCurve;
-import net.finmath.montecarlo.interestrate.products.Swap;
-import net.finmath.montecarlo.interestrate.products.SwapLeg;
 import net.finmath.montecarlo.AbstractRandomVariableFactory;
 import net.finmath.montecarlo.BrownianMotionInterface;
 import net.finmath.montecarlo.RandomVariable;
@@ -91,7 +91,7 @@ public class SwapAnalyticVsAADSensitivities {
 		Arrays.fill(swapRates, constantSwapRate); 
 
 		// Create Products
-		AbstractLIBORMonteCarloProduct simpleSwap = new SimpleSwap(fixingDates,paymentDates,swapRates); //Notional 1
+		AbstractLIBORMonteCarloProduct simpleSwap = new SimpleSwap(fixingDates,paymentDates,swapRates, 1.0); //Notional 1
 
 
 		// ------------------------------------------------------------------------------------------------------------

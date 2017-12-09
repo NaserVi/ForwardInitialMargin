@@ -25,9 +25,7 @@ import net.finmath.montecarlo.RandomVariableFactory;
 import initialmargin.isdasimm.changedfinmath.modelplugins.AbstractLIBORCovarianceModel;
 import initialmargin.isdasimm.changedfinmath.modelplugins.AbstractLIBORCovarianceModelParametric;
 import initialmargin.isdasimm.changedfinmath.products.AbstractLIBORMonteCarloProduct;
-//import net.finmath.montecarlo.interestrate.products.AbstractLIBORMonteCarloProduct;
 import initialmargin.isdasimm.changedfinmath.products.SwaptionAnalyticApproximation;
-import initialmargin.isdasimm.changedfinmath.products.SwaptionSimple;
 import net.finmath.montecarlo.model.AbstractModel;
 import net.finmath.montecarlo.process.AbstractProcessInterface;
 import net.finmath.stochastic.RandomVariableInterface;
@@ -35,6 +33,7 @@ import net.finmath.time.RegularSchedule;
 import net.finmath.time.ScheduleInterface;
 import net.finmath.time.TimeDiscretization;
 import net.finmath.time.TimeDiscretizationInterface;
+import initialmargin.isdasimm.changedfinmath.products.SwaptionSimple;
 
 
 /**

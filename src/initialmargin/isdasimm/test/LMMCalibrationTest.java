@@ -12,44 +12,40 @@ import java.util.Map;
 import org.junit.Assert;
 import org.junit.Test;
 
-//import net.finmath.montecarlo.interestrate.LIBORMarketModel;
 import initialmargin.isdasimm.changedfinmath.LIBORMarketModel;
 import initialmargin.isdasimm.changedfinmath.LIBORMarketModel.CalibrationItem;
 import initialmargin.isdasimm.changedfinmath.LIBORModelInterface;
 import initialmargin.isdasimm.changedfinmath.LIBORModelMonteCarloSimulation;
 import initialmargin.isdasimm.changedfinmath.LIBORModelMonteCarloSimulationInterface;
-//import net.finmath.montecarlo.interestrate.modelplugins.LIBORCovarianceModelFromVolatilityAndCorrelation;
 import initialmargin.isdasimm.changedfinmath.modelplugins.AbstractLIBORCovarianceModelParametric;
 import initialmargin.isdasimm.changedfinmath.modelplugins.BlendedLocalVolatilityModel;
 import initialmargin.isdasimm.changedfinmath.modelplugins.LIBORCovarianceModelFromVolatilityAndCorrelation;
-import initialmargin.isdasimm.changedfinmath.products.AbstractLIBORMonteCarloProduct;
+import initialmargin.isdasimm.changedfinmath.modelplugins.LIBORVolatilityModel;
+import initialmargin.isdasimm.changedfinmath.modelplugins.LIBORVolatilityModelPiecewiseConstant;
 import initialmargin.isdasimm.changedfinmath.products.SwaptionSimple;
+import initialmargin.isdasimm.changedfinmath.products.AbstractLIBORMonteCarloProduct;
 import net.finmath.exception.CalculationException;
 import net.finmath.marketdata.model.curves.DiscountCurve;
 import net.finmath.marketdata.model.curves.DiscountCurveInterface;
 import net.finmath.marketdata.model.curves.ForwardCurve;
 import net.finmath.marketdata.model.curves.ForwardCurveInterface;
 import net.finmath.montecarlo.BrownianMotionInterface;
+import net.finmath.montecarlo.RandomVariableFactory;
 import net.finmath.montecarlo.interestrate.modelplugins.LIBORCorrelationModel;
 import net.finmath.montecarlo.interestrate.modelplugins.LIBORCorrelationModelExponentialDecay;
-import initialmargin.isdasimm.changedfinmath.modelplugins.LIBORVolatilityModelFourParameterExponentialForm;
-import initialmargin.isdasimm.changedfinmath.modelplugins.LIBORVolatilityModelPiecewiseConstant;
-import initialmargin.isdasimm.changedfinmath.modelplugins.LIBORVolatilityModel;
-//import initialmargin.isdasimm.changedfinmath.modelplugins.LIBORVolatilityModelFourParameterExponentialFormIntegrated;
-//import net.finmath.montecarlo.interestrate.products.AbstractLIBORMonteCarloProduct;
-//import net.finmath.montecarlo.interestrate.products.SwaptionSimple;
 import net.finmath.montecarlo.process.ProcessEulerScheme;
 import net.finmath.optimizer.OptimizerFactoryInterface;
 import net.finmath.optimizer.OptimizerFactoryLevenbergMarquardt;
 import net.finmath.optimizer.SolverException;
 import net.finmath.time.TimeDiscretization;
-import net.finmath.time.TimeDiscretizationInterface;
 import net.finmath.time.businessdaycalendar.BusinessdayCalendarExcludingTARGETHolidays;
 import net.finmath.time.daycount.DayCountConvention_ACT_365;
 
+/*
+ * Modified code from net.finmath.montecarlo.interestrate.LIBORMarketModelCalibrationTest
+ */
 public class LMMCalibrationTest{
 	private static DecimalFormat formatterValue		= new DecimalFormat(" ##0.000%;-##0.000%", new DecimalFormatSymbols(Locale.ENGLISH));
-	private static DecimalFormat formatterParam		= new DecimalFormat(" #0.000;-#0.000", new DecimalFormatSymbols(Locale.ENGLISH));
 	private static DecimalFormat formatterDeviation	= new DecimalFormat(" 0.00000E00;-0.00000E00", new DecimalFormatSymbols(Locale.ENGLISH));
 	
 
@@ -94,12 +90,7 @@ public class LMMCalibrationTest{
 		final int numberOfPaths		= 1000;
 		final int numberOfFactors	= 1;
 		
-		
-		/*
-		 * Calibration test
-		 */
-		System.out.println("Calibration to Swaptions.\n");
-
+		// Curve Data as of December 8, 2017
 		DiscountCurveInterface discountCurve = (DiscountCurveInterface) DiscountCurve.createDiscountCurveFromDiscountFactors("discountCurve",
 				// Times 
 				new double[] {0,0.02739726,0.065753425,0.095890411,0.178082192,0.254794521,0.345205479,0.421917808,0.506849315,0.594520548,0.673972603,0.764383562,0.843835616,0.926027397,1.01369863,1.254794521,1.512328767,2.01369863,3.010958904,4.010958904,5.010958904,6.010958904,7.019178082,8.016438356,9.01369863,10.01369863,11.01643836,12.02191781,15.01917808,18.02465753,20.02191781,25.02739726,30.03287671,40.04109589,50.04109589},
@@ -128,14 +119,11 @@ public class LMMCalibrationTest{
 
 		double	swapPeriodLength	= 0.5;
 
+		// Swaption ATM normal implied volatiliy as of December 8, 2017
 		String[] atmExpiries = {"1M","2M","3M","6M","9M","1Y","18M","2Y","3Y","4Y","5Y","7Y","10Y","15Y","20Y","25Y","30Y","1M","2M","3M","6M","9M","1Y","18M","2Y","3Y","4Y","5Y","7Y","10Y","15Y","20Y","25Y","30Y","1M","2M","3M","6M","9M","1Y","18M","2Y","3Y","4Y","5Y","7Y","10Y","15Y","20Y","25Y","30Y","1M","2M","3M","6M","9M","1Y","18M","2Y","3Y","4Y","5Y","7Y","10Y","15Y","20Y","25Y","30Y","1M","2M","3M","6M","9M","1Y","18M","2Y","3Y","4Y","5Y","7Y","10Y","15Y","20Y","25Y","30Y","1M","2M","3M","6M","9M","1Y","18M","2Y","3Y","4Y","5Y","7Y","10Y","15Y","20Y","25Y","30Y","1M","2M","3M","6M","9M","1Y","18M","2Y","3Y","4Y","5Y","7Y","10Y","15Y","20Y","25Y","30Y","1M","2M","3M","6M","9M","1Y","18M","2Y","3Y","4Y","5Y","7Y","10Y","15Y","20Y","25Y","30Y","1M","2M","3M","6M","9M","1Y","18M","2Y","3Y","4Y","5Y","7Y","10Y","15Y","20Y","25Y","30Y","1M","2M","3M","6M","9M","1Y","18M","2Y","3Y","4Y","5Y","7Y","10Y","15Y","20Y","25Y","30Y","1M","2M","3M","6M","9M","1Y","18M","2Y","3Y","4Y","5Y","7Y","10Y","15Y","20Y","25Y","30Y","1M","2M","3M","6M","9M","1Y","18M","2Y","3Y","4Y","5Y","7Y","10Y","15Y","20Y","25Y","30Y","1M","2M","3M","6M","9M","1Y","18M","2Y","3Y","4Y","5Y","7Y","10Y","15Y","20Y","25Y","30Y","1M","2M","3M","6M","9M","1Y","18M","2Y","3Y","4Y","5Y","7Y","10Y","15Y","20Y","25Y","30Y","1M","2M","3M","6M","9M","1Y","18M","2Y","3Y","4Y","5Y","7Y","10Y","15Y","20Y","25Y","30Y","1M","2M","3M","6M","9M","1Y","18M","2Y","3Y","4Y","5Y","7Y","10Y","15Y","20Y","25Y","30Y","1M","2M","3M","6M","9M","1Y","18M","2Y","3Y","4Y","5Y","7Y","10Y","15Y","20Y","25Y","30Y"};
-		String[] atmTenors =   {"1Y",	"1Y","1Y","1Y","1Y","1Y","1Y","1Y","1Y","1Y","1Y","1Y","1Y","1Y","1Y","1Y","1Y","2Y","2Y","2Y","2Y","2Y","2Y","2Y","2Y","2Y","2Y","2Y","2Y","2Y","2Y","2Y","2Y      ",	" 2Y               ",	" 3Y               ",	" 3Y               ",	" 3Y               ",	" 3Y               ",	" 3Y               ",	" 3Y               ",	" 3Y               ",	" 3Y               ",	" 3Y               ",	" 3Y               ",	" 3Y               ",	" 3Y               ",	" 3Y               ",	" 3Y               ",	" 3Y               ",	" 3Y               ",	" 3Y               ",	" 4Y               ",	" 4Y               ",	" 4Y               ",	" 4Y               ",	" 4Y               ",	" 4Y               ",	" 4Y               ",	" 4Y               ",	" 4Y               ",	" 4Y               ",	" 4Y               ",	" 4Y               ",	" 4Y               ",	" 4Y               ",	" 4Y               ",	" 4Y               ",	" 4Y               ",	" 5Y               ",	" 5Y               ",	" 5Y               ",	" 5Y               ",	" 5Y               ",	" 5Y               ",	" 5Y               ",	" 5Y               ",	" 5Y               ",	" 5Y               ",	" 5Y               ",	" 5Y               ",	" 5Y               ",	" 5Y               ",	" 5Y               ",	" 5Y               ",	" 5Y               ",	" 6Y               ",	" 6Y               ",	" 6Y               ",	" 6Y               ",	" 6Y               ",	" 6Y               ",	" 6Y               ",	" 6Y               ",	" 6Y               ",	" 6Y               ",	" 6Y               ",	" 6Y               ",	" 6Y               ",	" 6Y               ",	" 6Y               ",	" 6Y               ",	" 6Y               ",	" 7Y               ",	" 7Y               ",	" 7Y               ",	" 7Y               ",	" 7Y               ",	" 7Y               ",	" 7Y               ",	" 7Y               ",	" 7Y               ",	" 7Y               ",	" 7Y               ",	" 7Y               ",	" 7Y               ",	" 7Y               ",	" 7Y               ",	" 7Y               ",	" 7Y               ",	" 8Y               ",	" 8Y               ",	" 8Y               ",	" 8Y               ",	" 8Y               ",	" 8Y               ",	" 8Y               ",	" 8Y               ",	" 8Y               ",	" 8Y               ",	" 8Y               ",	" 8Y               ",	" 8Y               ",	" 8Y               ",	" 8Y               ",	" 8Y               ",	" 8Y               ",	" 9Y               ",	" 9Y               ",	" 9Y               ",	" 9Y               ",	" 9Y               ",	" 9Y               ",	" 9Y               ",	" 9Y               ",	" 9Y               ",	" 9Y               ",	" 9Y               ",	" 9Y               ",	" 9Y               ",	" 9Y               ",	" 9Y               ",	" 9Y               ",	" 9Y               ",	" 10Y              ",	" 10Y              ",	" 10Y              ",	" 10Y              ",	" 10Y              ",	" 10Y              ",	" 10Y              ",	" 10Y              ",	" 10Y              ",	" 10Y              ",	" 10Y              ",	" 10Y              ",	" 10Y              ",	" 10Y              ",	" 10Y              ",	" 10Y              ",	" 10Y              ",	" 15Y              ",	" 15Y              ",	" 15Y              ",	" 15Y              ",	" 15Y              ",	" 15Y              ",	" 15Y              ",	" 15Y              ",	" 15Y              ",	" 15Y              ",	" 15Y              ",	" 15Y              ",	" 15Y              ",	" 15Y              ",	" 15Y              ",	" 15Y              ",	" 15Y              ",	" 20Y              ",	" 20Y              ",	" 20Y              ",	" 20Y              ",	" 20Y              ",	" 20Y              ",	" 20Y              ",	" 20Y              ",	" 20Y              ",	" 20Y              ",	" 20Y              ",	" 20Y              ",	" 20Y              ",	" 20Y              ",	" 20Y              ",	" 20Y              ",	" 20Y              ",	" 25Y              ",	" 25Y              ",	" 25Y              ",	" 25Y              ",	" 25Y              ",	" 25Y              ",	" 25Y              ",	" 25Y              ",	" 25Y              ",	" 25Y              ",	" 25Y              ",	" 25Y              ",	" 25Y              ",	" 25Y              ",	" 25Y              ",	" 25Y              ",	" 25Y              ",	" 30Y              ",	" 30Y              ",	" 30Y              ",	" 30Y              ",	" 30Y              ",	" 30Y              ",	" 30Y              ",	" 30Y              ",	" 30Y              ",	" 30Y              ",	" 30Y              ",	" 30Y              ",	" 30Y              ",	" 30Y              ",	" 30Y              ",	" 30Y              ",	" 30Y              "};
-          				         
-	    double[] atmNormalVolatilities = {0.085,0.095,0.096,0.127,0.161,	0.198,	0.266,	0.34,	0.476,	0.56,	0.611,	0.657,	0.667,	0.634,	0.592,	0.56,	0.53,	0.135,	0.143,	0.149,	0.186,	0.228,	0.269,	0.337,	0.4,	0.507,	0.575,	0.617,	0.659,	0.67,	0.635,	0.591,	0.56,	0.53,	0.183,	0.191,	0.204,	0.247,	0.28,	0.316,	0.382,	0.438,	0.526,	0.582,	0.62,	0.657,	0.666,	0.631,	0.59,	0.558,	0.525,	0.224,	0.24,	0.27,	0.304,	0.336,	0.361,	0.42,	0.467,	0.539,	0.588,	0.623,	0.654,	0.662,	0.627,	0.586,	0.553,	0.52,	0.242,	0.281,	0.299,	0.339,	0.375,	0.405,	0.449,	0.492,	0.555,	0.595,	0.625,	0.652,	0.661,	0.627,	0.585,	0.549,	0.516,	0.263,	0.303,	0.321,	0.364,	0.401,	0.425,	0.463,	0.502,	0.564,	0.598,	0.628,	0.651,	0.658,	0.622,	0.58,	0.54,	0.507,	0.276,	0.317,	0.336,	0.379,	0.415,	0.438,	0.476,	0.511,	0.567,	0.603,	0.629,	0.65,	0.655,	0.615,	0.572,	0.532,	0.497,	0.295,	0.329,	0.345,	0.392,	0.43,	0.452,	0.488,	0.522,	0.575,	0.607,	0.63,	0.65,	0.651,	0.611,	0.567,	0.524,	0.486,	0.298,	0.337,	0.351,	0.402,	0.436,	0.459,	0.496,	0.53,	0.579,	0.608,	0.629,	0.65,	0.647,	0.607,	0.562,	0.518,	0.477,	0.304,	0.342,	0.359,	0.407,	0.439,	0.466,	0.504,	0.535,	0.58,	0.609,	0.63,	0.646,	0.644,	0.605,	0.557,	0.512,	0.471,	0.329,	0.371,	0.385,	0.429,	0.457,	0.481,	0.514,	0.537,	0.568,	0.586,	0.598,	0.603,	0.596,	0.554,	0.509,	0.469,	0.433,	0.344,	0.387,	0.4,	0.44,	0.463,	0.488,	0.518,	0.541,	0.568,	0.581,	0.587,	0.585,	0.57,	0.52,	0.469,	0.428,	0.394,	0.36,	0.402,	0.412,	0.446,	0.466,	0.491,	0.518,	0.539,	0.561,	0.569,	0.572,	0.564,	0.548,	0.498,	0.446,	0.406,	0.375,	0.373,	0.41,	0.416,	0.449,	0.468,	0.491,	0.518,	0.535,	0.557,	0.564,	0.564,	0.555,	0.535,	0.48,	0.427,	0.388,	0.361};
-
+		String[] atmTenors =   {"1Y",	"1Y","1Y","1Y","1Y","1Y","1Y","1Y","1Y","1Y","1Y","1Y","1Y","1Y","1Y","1Y","1Y","2Y","2Y","2Y","2Y","2Y","2Y","2Y","2Y","2Y","2Y","2Y","2Y","2Y","2Y","2Y","2Y      ",	" 2Y               ",	" 3Y               ",	" 3Y               ",	" 3Y               ",	" 3Y               ",	" 3Y               ",	" 3Y               ",	" 3Y               ",	" 3Y               ",	" 3Y               ",	" 3Y               ",	" 3Y               ",	" 3Y               ",	" 3Y               ",	" 3Y               ",	" 3Y               ",	" 3Y               ",	" 3Y               ",	" 4Y               ",	" 4Y               ",	" 4Y               ",	" 4Y               ",	" 4Y               ",	" 4Y               ",	" 4Y               ",	" 4Y               ",	" 4Y               ",	" 4Y               ",	" 4Y               ",	" 4Y               ",	" 4Y               ",	" 4Y               ",	" 4Y               ",	" 4Y               ",	" 4Y               ",	" 5Y               ",	" 5Y               ",	" 5Y               ",	" 5Y               ",	" 5Y               ",	" 5Y               ",	" 5Y               ",	" 5Y               ",	" 5Y               ",	" 5Y               ",	" 5Y               ",	" 5Y               ",	" 5Y               ",	" 5Y               ",	" 5Y               ",	" 5Y               ",	" 5Y               ",	" 6Y               ",	" 6Y               ",	" 6Y               ",	" 6Y               ",	" 6Y               ",	" 6Y               ",	" 6Y               ",	" 6Y               ",	" 6Y               ",	" 6Y               ",	" 6Y               ",	" 6Y               ",	" 6Y               ",	" 6Y               ",	" 6Y               ",	" 6Y               ",	" 6Y               ",	" 7Y               ",	" 7Y               ",	" 7Y               ",	" 7Y               ",	" 7Y               ",	" 7Y               ",	" 7Y               ",	" 7Y               ",	" 7Y               ",	" 7Y               ",	" 7Y               ",	" 7Y               ",	" 7Y               ",	" 7Y               ",	" 7Y               ",	" 7Y               ",	" 7Y               ",	" 8Y               ",	" 8Y               ",	" 8Y               ",	" 8Y               ",	" 8Y               ",	" 8Y               ",	" 8Y               ",	" 8Y               ",	" 8Y               ",	" 8Y               ",	" 8Y               ",	" 8Y               ",	" 8Y               ",	" 8Y               ",	" 8Y               ",	" 8Y               ",	" 8Y               ",	" 9Y               ",	" 9Y               ",	" 9Y               ",	" 9Y               ",	" 9Y               ",	" 9Y               ",	" 9Y               ",	" 9Y               ",	" 9Y               ",	" 9Y               ",	" 9Y               ",	" 9Y               ",	" 9Y               ",	" 9Y               ",	" 9Y               ",	" 9Y               ",	" 9Y               ",	" 10Y              ",	" 10Y              ",	" 10Y              ",	" 10Y              ",	" 10Y              ",	" 10Y              ",	" 10Y              ",	" 10Y              ",	" 10Y              ",	" 10Y              ",	" 10Y              ",	" 10Y              ",	" 10Y              ",	" 10Y              ",	" 10Y              ",	" 10Y              ",	" 10Y              ",	" 15Y              ",	" 15Y              ",	" 15Y              ",	" 15Y              ",	" 15Y              ",	" 15Y              ",	" 15Y              ",	" 15Y              ",	" 15Y              ",	" 15Y              ",	" 15Y              ",	" 15Y              ",	" 15Y              ",	" 15Y              ",	" 15Y              ",	" 15Y              ",	" 15Y              ",	" 20Y              ",	" 20Y              ",	" 20Y              ",	" 20Y              ",	" 20Y              ",	" 20Y              ",	" 20Y              ",	" 20Y              ",	" 20Y              ",	" 20Y              ",	" 20Y              ",	" 20Y              ",	" 20Y              ",	" 20Y              ",	" 20Y              ",	" 20Y              ",	" 20Y              ",	" 25Y              ",	" 25Y              ",	" 25Y              ",	" 25Y              ",	" 25Y              ",	" 25Y              ",	" 25Y              ",	" 25Y              ",	" 25Y              ",	" 25Y              ",	" 25Y              ",	" 25Y              ",	" 25Y              ",	" 25Y              ",	" 25Y              ",	" 25Y              ",	" 25Y              ",	" 30Y              ",	" 30Y              ",	" 30Y              ",	" 30Y              ",	" 30Y              ",	" 30Y              ",	" 30Y              ",	" 30Y              ",	" 30Y              ",	" 30Y              ",	" 30Y              ",	" 30Y              ",	" 30Y              ",	" 30Y              ",	" 30Y              ",	" 30Y              ",	" 30Y              "};         				         
+	    double[] atmNormalVolatilities = {0.00085,	0.00095,	0.00096,	0.00127,	0.00161,	0.00198,	0.00266,	0.0034,	0.00476,	0.0056,	0.00611,	0.00657,	0.00667,	0.00634,	0.00592,	0.0056,	0.0053,	0.00135,	0.00143,	0.00149,	0.00186,	0.00228,	0.00269,	0.00337,	0.004,	0.00507,	0.00575,	0.00617,	0.00659,	0.0067,	0.00635,	0.00591,	0.0056,	0.0053,	0.00183,	0.00191,	0.00204,	0.00247,	0.0028,	0.00316,	0.00382,	0.00438,	0.00526,	0.00582,	0.0062,	0.00657,	0.00666,	0.00631,	0.0059,	0.00558,	0.00525,	0.00224,	0.0024,	0.0027,	0.00304,	0.00336,	0.00361,	0.0042,	0.00467,	0.00539,	0.00588,	0.00623,	0.00654,	0.00662,	0.00627,	0.00586,	0.00553,	0.0052,	0.00242,	0.00281,	0.00299,	0.00339,	0.00375,	0.00405,	0.00449,	0.00492,	0.00555,	0.00595,	0.00625,	0.00652,	0.00661,	0.00627,	0.00585,	0.00549,	0.00516,	0.00263,	0.00303,	0.00321,	0.00364,	0.00401,	0.00425,	0.00463,	0.00502,	0.00564,	0.00598,	0.00628,	0.00651,	0.00658,	0.00622,	0.0058,	0.0054,	0.00507,	0.00276,	0.00317,	0.00336,	0.00379,	0.00415,	0.00438,	0.00476,	0.00511,	0.00567,	0.00603,	0.00629,	0.0065,	0.00655,	0.00615,	0.00572,	0.00532,	0.00497,	0.00295,	0.00329,	0.00345,	0.00392,	0.0043,	0.00452,	0.00488,	0.00522,	0.00575,	0.00607,	0.0063,	0.0065,	0.00651,	0.00611,	0.00567,	0.00524,	0.00486,	0.00298,	0.00337,	0.00351,	0.00402,	0.00436,	0.00459,	0.00496,	0.0053,	0.00579,	0.00608,	0.00629,	0.0065,	0.00647,	0.00607,	0.00562,	0.00518,	0.00477,	0.00304,	0.00342,	0.00359,	0.00407,	0.00439,	0.00466,	0.00504,	0.00535,	0.0058,	0.00609,	0.0063,	0.00646,	0.00644,	0.00605,	0.00557,	0.00512,	0.00471,	0.00329,	0.00371,	0.00385,	0.00429,	0.00457,	0.00481,	0.00514,	0.00537,	0.00568,	0.00586,	0.00598,	0.00603,	0.00596,	0.00554,	0.00509,	0.00469,	0.00433,	0.00344,	0.00387,	0.004,	0.0044,	0.00463,	0.00488,	0.00518,	0.00541,	0.00568,	0.00581,	0.00587,	0.00585,	0.0057,	0.0052,	0.00469,	0.00428,	0.00394,	0.0036,	0.00402,	0.00412,	0.00446,	0.00466,	0.00491,	0.00518,	0.00539,	0.00561,	0.00569,	0.00572,	0.00564,	0.00548,	0.00498,	0.00446,	0.00406,	0.00375,	0.00373,	0.0041,	0.00416,	0.00449,	0.00468,	0.00491,	0.00518,	0.00535,	0.00557,	0.00564,	0.00564,	0.00555,	0.00535,	0.0048,	0.00427,	0.00388,	0.00361};
 	    		
-	    
-
 		LocalDate referenceDate = LocalDate.of(2017, Month.DECEMBER, 8); 
 		BusinessdayCalendarExcludingTARGETHolidays cal = new BusinessdayCalendarExcludingTARGETHolidays();
 		DayCountConvention_ACT_365 modelDC = new DayCountConvention_ACT_365();
@@ -169,27 +157,33 @@ public class LMMCalibrationTest{
 		 * Create a simulation time discretization
 		 */
 		// If simulation time is below libor time, exceptions will be hard to track.
-		double lastTime	= 32.0;
+		double lastTime	= 30.0;
 		double dt		= 0.1;
 		TimeDiscretization timeDiscretization = new TimeDiscretization(0.0, (int) (lastTime / dt), dt);
-		final TimeDiscretizationInterface liborPeriodDiscretization = timeDiscretization;
+		
+		/*
+		 * Create the libor tenor structure and the initial values
+		 */
+		double liborPeriodLength	= 0.5;
+		double liborRateTimeHorzion	= 30.0;
+		TimeDiscretization liborPeriodDiscretization = new TimeDiscretization(0.0, (int) (liborRateTimeHorzion / liborPeriodLength), liborPeriodLength);
 
 		/*
 		 * Create Brownian motions 
 		 */
 		final BrownianMotionInterface brownianMotion = new net.finmath.montecarlo.BrownianMotion(timeDiscretization, numberOfFactors, numberOfPaths, 31415 /* seed */);
 		
-		LIBORVolatilityModel volatilityModel = new LIBORVolatilityModelPiecewiseConstant(SIMMTest.createRandomVariableFactoryAAD(),timeDiscretization, liborPeriodDiscretization, new TimeDiscretization(0.00, 1.0, 2.0, 5.0, 10.0, 20.0, 32.0), new TimeDiscretization(0.00, 1.0, 2.0, 5.0, 10.0, 20.0, 32.0), new double[]{ 0.50 / 100},true);
-		//double a = 0.0 / 20.0, b = 0.0, c = 0.25, d = 0.3 / 20.0 / 2.0;
-	    //LIBORVolatilityModel volatilityModel = new LIBORVolatilityModelFourParameterExponentialForm(SIMMTest.createRandomVariableFactoryAAD(), timeDiscretization, liborPeriodDiscretization, a, b, c, d, true);		
+		// Create a volatility model: Piecewise constant volatility
+		LIBORVolatilityModel volatilityModel = new LIBORVolatilityModelPiecewiseConstant(new RandomVariableFactory(),timeDiscretization, liborPeriodDiscretization, new TimeDiscretization(0.00, 1.0, 2.0, 5.0, 10.0, 20.0, 30.0), new TimeDiscretization(0.00, 1.0, 2.0, 5.0, 10.0, 20.0, 30.0), new double[]{ 0.50 / 100},true);
 					
+		// Create a correlation model
 		LIBORCorrelationModel correlationModel = new LIBORCorrelationModelExponentialDecay(timeDiscretization, liborPeriodDiscretization, numberOfFactors, 0.04, true);
+		
 		// Create a covariance model
-		//AbstractLIBORCovarianceModelParametric covarianceModelParametric = new LIBORCovarianceModelExponentialForm5Param(timeDiscretization, liborPeriodDiscretization, numberOfFactors, new double[] { 0.20/100.0, 0.05/100.0, 0.10, 0.05/100.0, 0.10} );
 		AbstractLIBORCovarianceModelParametric covarianceModelParametric = new LIBORCovarianceModelFromVolatilityAndCorrelation(timeDiscretization, liborPeriodDiscretization, volatilityModel, correlationModel);
 
 		// Create blended local volatility model with fixed parameter 0.0 (that is "lognormal").
-		AbstractLIBORCovarianceModelParametric covarianceModelBlended = new BlendedLocalVolatilityModel(SIMMTest.createRandomVariableFactoryAAD(),covarianceModelParametric, 0.5, true);
+		AbstractLIBORCovarianceModelParametric covarianceModelBlended = new BlendedLocalVolatilityModel(new RandomVariableFactory(),covarianceModelParametric, 0.5, true);
 
 		// Set model properties
 		Map<String, Object> properties = new HashMap<String, Object>();
@@ -201,8 +195,8 @@ public class LMMCalibrationTest{
 		properties.put("stateSpace", LIBORMarketModel.StateSpace.NORMAL.name());
 
 		// Set calibration properties (should use our brownianMotion for calibration - needed to have to right correlation).		
-		Double accuracy = new Double(1E-4);	// Lower accuracy to reduce runtime of the unit test
-		int maxIterations = 100;
+		Double accuracy = new Double(1E-5);	// Lower accuracy to reduce runtime of the unit test
+		int maxIterations = 200;
 		int numberOfThreads = 4;
 		OptimizerFactoryInterface optimizerFactory = new OptimizerFactoryLevenbergMarquardt(maxIterations, accuracy, numberOfThreads);
 
@@ -226,8 +220,8 @@ public class LMMCalibrationTest{
 		/*
 		 * Create corresponding LIBOR Market Model
 		 */
-		LIBORMarketModel.CalibrationItem[] calibrationItemsLMM = new LIBORMarketModel.CalibrationItem[50];//calibrationItemNames.size()];
-		for(int i=0; i<50 /*calibrationItemNames.size()*/; i++) calibrationItemsLMM[i] = new LIBORMarketModel.CalibrationItem(calibrationItems.get(i).calibrationProduct,calibrationItems.get(i).calibrationTargetValue,calibrationItems.get(i).calibrationWeight);
+		LIBORMarketModel.CalibrationItem[] calibrationItemsLMM = new LIBORMarketModel.CalibrationItem[calibrationItemNames.size()];
+		for(int i=0; i<calibrationItemNames.size(); i++) calibrationItemsLMM[i] = new LIBORMarketModel.CalibrationItem(calibrationItems.get(i).calibrationProduct,calibrationItems.get(i).calibrationTargetValue,calibrationItems.get(i).calibrationWeight);
 		LIBORModelInterface liborMarketModelCalibrated = new LIBORMarketModel(
 				liborPeriodDiscretization,
 				null,
@@ -270,7 +264,7 @@ public class LMMCalibrationTest{
 		System.out.println("RMS Error.....:" + formatterValue.format(Math.sqrt(deviationSquaredSum/calibrationItems.size())));
 		System.out.println("__________________________________________________________________________________________\n");
 
-		Assert.assertTrue(Math.abs(averageDeviation) < 1E-2);
+		Assert.assertTrue(Math.abs(averageDeviation) < 1E-3);
 	}
 	
 	private static double getParSwaprate(ForwardCurveInterface forwardCurve, DiscountCurveInterface discountCurve, double[] swapTenor) throws CalculationException {

@@ -25,8 +25,6 @@ import net.finmath.montecarlo.BrownianMotion;
 import net.finmath.montecarlo.BrownianMotionInterface;
 import net.finmath.montecarlo.MonteCarloSimulationInterface;
 import net.finmath.montecarlo.automaticdifferentiation.RandomVariableDifferentiableInterface;
-//import net.finmath.montecarlo.interestrate.modelplugins.AbstractLIBORCovarianceModel;
-//import net.finmath.montecarlo.interestrate.products.AbstractLIBORMonteCarloProduct;
 import net.finmath.montecarlo.process.ProcessEulerScheme;
 import net.finmath.optimizer.OptimizerFactoryInterface;
 import net.finmath.optimizer.OptimizerFactoryLevenbergMarquardt;

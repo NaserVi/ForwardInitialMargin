@@ -16,8 +16,6 @@ import net.finmath.montecarlo.automaticdifferentiation.RandomVariableDifferentia
 import net.finmath.montecarlo.conditionalexpectation.MonteCarloConditionalExpectationRegression;
 import initialmargin.isdasimm.changedfinmath.*;
 import initialmargin.isdasimm.changedfinmath.products.*;
-//import net.finmath.montecarlo.interestrate.products.AbstractLIBORMonteCarloProduct;
-//import net.finmath.montecarlo.interestrate.products.Portfolio;
 import net.finmath.optimizer.SolverException;
 import net.finmath.stochastic.ConditionalExpectationEstimatorInterface;
 import net.finmath.stochastic.RandomVariableInterface;

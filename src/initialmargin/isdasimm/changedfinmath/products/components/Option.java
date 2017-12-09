@@ -12,8 +12,6 @@ import initialmargin.isdasimm.changedfinmath.LIBORModelMonteCarloSimulationInter
 import initialmargin.isdasimm.changedfinmath.products.AbstractLIBORMonteCarloProduct;
 import net.finmath.exception.CalculationException;
 import net.finmath.montecarlo.conditionalexpectation.MonteCarloConditionalExpectationRegression;
-//import net.finmath.montecarlo.interestrate.LIBORModelMonteCarloSimulationInterface;
-//import net.finmath.montecarlo.interestrate.products.AbstractLIBORMonteCarloProduct;
 import net.finmath.stochastic.RandomVariableInterface;
 
 /**
