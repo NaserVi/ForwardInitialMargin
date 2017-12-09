@@ -22,6 +22,8 @@ import initialmargin.isdasimm.changedfinmath.LIBORModelMonteCarloSimulationInter
 import initialmargin.isdasimm.changedfinmath.modelplugins.AbstractLIBORCovarianceModelParametric;
 import initialmargin.isdasimm.changedfinmath.modelplugins.BlendedLocalVolatilityModel;
 import initialmargin.isdasimm.changedfinmath.modelplugins.LIBORCovarianceModelFromVolatilityAndCorrelation;
+import initialmargin.isdasimm.changedfinmath.products.AbstractLIBORMonteCarloProduct;
+import initialmargin.isdasimm.changedfinmath.products.SwaptionSimple;
 import net.finmath.exception.CalculationException;
 import net.finmath.marketdata.model.curves.DiscountCurve;
 import net.finmath.marketdata.model.curves.DiscountCurveInterface;
@@ -32,8 +34,8 @@ import net.finmath.montecarlo.interestrate.modelplugins.LIBORCorrelationModel;
 import net.finmath.montecarlo.interestrate.modelplugins.LIBORCorrelationModelExponentialDecay;
 import net.finmath.montecarlo.interestrate.modelplugins.LIBORVolatilityModel;
 import net.finmath.montecarlo.interestrate.modelplugins.LIBORVolatilityModelFourParameterExponentialFormIntegrated;
-import net.finmath.montecarlo.interestrate.products.AbstractLIBORMonteCarloProduct;
-import net.finmath.montecarlo.interestrate.products.SwaptionSimple;
+//import net.finmath.montecarlo.interestrate.products.AbstractLIBORMonteCarloProduct;
+//import net.finmath.montecarlo.interestrate.products.SwaptionSimple;
 import net.finmath.montecarlo.process.ProcessEulerScheme;
 import net.finmath.optimizer.OptimizerFactoryInterface;
 import net.finmath.optimizer.OptimizerFactoryLevenbergMarquardt;
@@ -87,7 +89,7 @@ public class LMMCalibrationTest{
 	@Test
 	public void testATMSwaptionCalibration() throws CalculationException, SolverException {
 
-		final int numberOfPaths		= 1000;
+		final int numberOfPaths		= 10;
 		final int numberOfFactors	= 1;
 		
 		
