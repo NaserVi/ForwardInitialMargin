@@ -6,21 +6,17 @@
 package initialmargin.isdasimm.changedfinmath.products;
 
 import java.util.Arrays;
-import java.util.HashMap;
-import java.util.Map;
 
-import initialmargin.isdasimm.changedfinmath.*;
+import initialmargin.isdasimm.changedfinmath.LIBORModelMonteCarloSimulationInterface;
 import net.finmath.exception.CalculationException;
 import net.finmath.functions.AnalyticFormulas;
 import net.finmath.marketdata.model.AnalyticModelInterface;
 import net.finmath.marketdata.model.curves.DiscountCurveFromForwardCurve;
-//import net.finmath.marketdata.model.curves.DiscountCurveInterface;
-import net.finmath.analytic.model.curves.DiscountCurveInterface;
+import net.finmath.marketdata.model.curves.DiscountCurveInterface;
 import net.finmath.marketdata.model.curves.ForwardCurveInterface;
 import net.finmath.marketdata.products.Swap;
 import net.finmath.marketdata.products.SwapAnnuity;
 import net.finmath.montecarlo.RandomVariable;
-import net.finmath.montecarlo.automaticdifferentiation.RandomVariableDifferentiableInterface;
 import net.finmath.stochastic.RandomVariableInterface;
 import net.finmath.time.TimeDiscretization;
 import net.finmath.time.TimeDiscretizationInterface;
@@ -99,11 +95,11 @@ public class Swaption extends AbstractLIBORMonteCarloProduct {
 	public Swaption(
 			double				exerciseDate,
 			TimeDiscretizationInterface	swapTenor,
-			double				swaprate,
-			double notional) {
+			double				swaprate
+			) {
 		super();
 		this.exerciseDate = exerciseDate;
-		this.notional = notional;
+		this.notional = 1.0;
 
 		this.fixingDates	= new double[swapTenor.getNumberOfTimeSteps()];
 		this.paymentDates	= new double[swapTenor.getNumberOfTimeSteps()];
@@ -151,11 +147,9 @@ public class Swaption extends AbstractLIBORMonteCarloProduct {
 
 			// Get random variables - note that this is the rate at simulation time = exerciseDate
 			RandomVariableInterface libor	= model.getLIBOR(exerciseDate, fixingDate, paymentDate);
-			double test2 = libor.getAverage();
 
 			// Calculate payoff
 			RandomVariableInterface payoff = libor.sub(swaprate).mult(periodLength).mult(notional);
-			double test3 = payoff.getAverage();
 
 			// Calculated the adjustment for the discounting curve, assuming a deterministic basis
 			// @TODO: Need to check if the model fulfills the assumptions (all models implementing the interface currently do so).
@@ -165,10 +159,10 @@ public class Swaption extends AbstractLIBORMonteCarloProduct {
 				AnalyticModelInterface analyticModel = model.getModel().getAnalyticModel();
 				DiscountCurveInterface discountCurve = model.getModel().getDiscountCurve();
 				ForwardCurveInterface forwardCurve = model.getModel().getForwardRateCurve();
-				net.finmath.marketdata.model.curves.DiscountCurveInterface discountCurveFromForwardCurve = new DiscountCurveFromForwardCurve(forwardCurve);
+				DiscountCurveInterface discountCurveFromForwardCurve = new DiscountCurveFromForwardCurve(forwardCurve);
 
 				double forwardBondOnForwardCurve = discountCurveFromForwardCurve.getDiscountFactor(analyticModel, discountingDate) / discountCurveFromForwardCurve.getDiscountFactor(analyticModel, paymentDate);
-				RandomVariableInterface forwardBondOnDiscountCurve = discountCurve.getDiscountFactor(discountingDate).div(discountCurve.getDiscountFactor(paymentDate));
+				RandomVariableInterface forwardBondOnDiscountCurve = new RandomVariable(discountCurve.getDiscountFactor(discountingDate)).div(discountCurve.getDiscountFactor(paymentDate));
 				discountingAdjustment =  forwardBondOnDiscountCurve.pow(-1.0).mult(forwardBondOnForwardCurve);
 			} else {
 				discountingAdjustment = new RandomVariable(1.0);

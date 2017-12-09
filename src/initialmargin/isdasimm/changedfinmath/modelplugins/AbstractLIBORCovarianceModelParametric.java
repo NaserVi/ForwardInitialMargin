@@ -1,9 +1,9 @@
+package initialmargin.isdasimm.changedfinmath.modelplugins;
 /*
  * (c) Copyright Christian P. Fries, Germany. All rights reserved. Contact: email@christian-fries.de.
  *
  * Created on 20.05.2006
  */
-package initialmargin.isdasimm.changedfinmath;
 
 import java.util.ArrayList;
 import java.util.Arrays;

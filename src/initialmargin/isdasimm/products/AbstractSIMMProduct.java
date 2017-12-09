@@ -12,6 +12,8 @@ import java.util.stream.Collectors;
 import org.apache.commons.lang3.ArrayUtils;
 
 import initialmargin.isdasimm.aggregationscheme.CalculationSchemeInitialMarginISDA;
+import initialmargin.isdasimm.changedfinmath.LIBORModelInterface;
+import initialmargin.isdasimm.changedfinmath.LIBORModelMonteCarloSimulation;
 import initialmargin.isdasimm.changedfinmath.LIBORModelMonteCarloSimulationInterface;
 import initialmargin.isdasimm.changedfinmath.products.AbstractLIBORMonteCarloProduct;
 import initialmargin.isdasimm.sensitivity.AbstractSIMMSensitivityCalculation;
@@ -19,8 +21,16 @@ import initialmargin.isdasimm.sensitivity.AbstractSIMMSensitivityCalculation.Sen
 import initialmargin.isdasimm.sensitivity.AbstractSIMMSensitivityCalculation.WeightMode;
 import initialmargin.isdasimm.sensitivity.SIMMSensitivityCalculation;
 import net.finmath.exception.CalculationException;
+import net.finmath.montecarlo.BrownianMotion;
+import net.finmath.montecarlo.BrownianMotionInterface;
 import net.finmath.montecarlo.RandomVariable;
+import net.finmath.montecarlo.RandomVariableFactory;
 import net.finmath.montecarlo.automaticdifferentiation.RandomVariableDifferentiableInterface;
+import net.finmath.montecarlo.interestrate.modelplugins.LIBORCorrelationModelExponentialDecay;
+import net.finmath.montecarlo.interestrate.modelplugins.LIBORCovarianceModelFromVolatilityAndCorrelation;
+import net.finmath.montecarlo.interestrate.modelplugins.LIBORVolatilityModel;
+import net.finmath.montecarlo.interestrate.modelplugins.LIBORVolatilityModelFromGivenMatrix;
+import net.finmath.montecarlo.process.ProcessEulerScheme;
 import net.finmath.optimizer.SolverException;
 import net.finmath.stochastic.ConditionalExpectationEstimatorInterface;
 import net.finmath.stochastic.RandomVariableInterface;
@@ -536,6 +546,31 @@ public abstract class AbstractSIMMProduct implements SIMMProductInterface {
 		if(evaluationTime==0) return 0.0;
 		int nextLiborIndex = model.getLiborPeriodDiscretization().getTimeIndexNearestGreaterOrEqual(evaluationTime);
 		return model.getLiborPeriodDiscretization().getTime(nextLiborIndex-1);
+	}
+	
+	
+	private LIBORModelMonteCarloSimulationInterface getZeroVolatilityModel(LIBORModelMonteCarloSimulationInterface model) throws CalculationException{
+		
+		// Set brownian motion with one path
+		BrownianMotionInterface originalBM = model.getBrownianMotion();
+		BrownianMotionInterface brownianMotion = new BrownianMotion(originalBM.getTimeDiscretization(), originalBM.getNumberOfFactors(), 1 /* numberOfPaths */, 3141);
+        // Get process
+		ProcessEulerScheme process = new ProcessEulerScheme(brownianMotion, ProcessEulerScheme.Scheme.EULER_FUNCTIONAL);
+		// Create zero volatility model
+		double[][] volatility = new double[model.getTimeDiscretization().getNumberOfTimeSteps()][model.getLiborPeriodDiscretization().getNumberOfTimeSteps()];
+		LIBORVolatilityModel volatilityModel = new LIBORVolatilityModelFromGivenMatrix(new RandomVariableFactory(), model.getTimeDiscretization(), model.getLiborPeriodDiscretization(), volatility);
+		//Create a correlation model rho_{i,j} = exp(-a * abs(T_i-T_j))
+		LIBORCorrelationModelExponentialDecay correlationModel = new LIBORCorrelationModelExponentialDecay(model.getTimeDiscretization(), model.getLiborPeriodDiscretization(), model.getNumberOfFactors(),0);
+				
+		//Combine volatility model and correlation model to a covariance model
+		LIBORCovarianceModelFromVolatilityAndCorrelation covarianceModel =
+				new LIBORCovarianceModelFromVolatilityAndCorrelation(model.getTimeDiscretization(),
+						model.getLiborPeriodDiscretization(), volatilityModel, correlationModel);
+
+		Map<String, Object> dataModified = new HashMap<>();
+		dataModified.put("covarianceModel", covarianceModel);
+		return new LIBORModelMonteCarloSimulation((LIBORModelInterface)model.getModel().getCloneWithModifiedData(dataModified),process);
+		
 	}
     
 }

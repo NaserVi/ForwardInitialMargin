@@ -12,7 +12,7 @@ import initialmargin.isdasimm.products.SIMMSimpleSwap;
 import initialmargin.isdasimm.sensitivity.AbstractSIMMSensitivityCalculation.SensitivityMode;
 import initialmargin.isdasimm.sensitivity.AbstractSIMMSensitivityCalculation.WeightMode;
 import initialmargin.isdasimm.sensitivity.SIMMSensitivityCalculation;
-import net.finmath.analytic.model.curves.DiscountCurve;
+import net.finmath.marketdata.model.curves.DiscountCurve;
 import net.finmath.exception.CalculationException;
 import net.finmath.marketdata.model.curves.ForwardCurve;
 import net.finmath.montecarlo.AbstractRandomVariableFactory;

@@ -7,31 +7,23 @@ package initialmargin.isdasimm.changedfinmath;
 
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Map;
-import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.stream.Collectors;
 
-import initialmargin.isdasimm.changedfinmath.AbstractLIBORCovarianceModelParametric;
-import initialmargin.isdasimm.changedfinmath.LIBORMarketModelInterface;
+//import initialmargin.isdasimm.changedfinmath.modelplugins.AbstractLIBORCovarianceModelParametric;
+import net.finmath.marketdata.model.curves.DiscountCurveInterface;
 import net.finmath.exception.CalculationException;
 import net.finmath.functions.AnalyticFormulas;
 import net.finmath.marketdata.model.AnalyticModelInterface;
-//import net.finmath.marketdata.model.curves.DiscountCurveFromForwardCurve;
-//import net.finmath.marketdata.model.curves.DiscountCurveInterface;
-import net.finmath.analytic.model.curves.DiscountCurveFromForwardCurve;
-import net.finmath.analytic.model.curves.DiscountCurveInterface;
 import net.finmath.marketdata.model.curves.ForwardCurveInterface;
 import net.finmath.marketdata.model.volatilities.AbstractSwaptionMarketData;
 import net.finmath.marketdata.products.Swap;
 import net.finmath.marketdata.products.SwapAnnuity;
-
-
 import net.finmath.montecarlo.AbstractRandomVariableFactory;
 import net.finmath.montecarlo.RandomVariable;
 import net.finmath.montecarlo.RandomVariableFactory;
 import net.finmath.montecarlo.interestrate.modelplugins.AbstractLIBORCovarianceModel;
+import initialmargin.isdasimm.changedfinmath.modelplugins.AbstractLIBORCovarianceModelParametric;
 import net.finmath.montecarlo.interestrate.products.AbstractLIBORMonteCarloProduct;
 import net.finmath.montecarlo.interestrate.products.SwaptionAnalyticApproximation;
 import net.finmath.montecarlo.interestrate.products.SwaptionSimple;
@@ -42,6 +34,7 @@ import net.finmath.time.RegularSchedule;
 import net.finmath.time.ScheduleInterface;
 import net.finmath.time.TimeDiscretization;
 import net.finmath.time.TimeDiscretizationInterface;
+
 
 /**
  * Implements a (generalized) LIBOR market model with some drift approximation methods.
@@ -544,6 +537,10 @@ public class LIBORMarketModel extends AbstractModel implements LIBORMarketModelI
 		this(liborPeriodDiscretization, null, forwardRateCurve, discountCurve, covarianceModel, calibrationItems, properties);
 	}
 
+	
+
+
+
 	private static CalibrationItem[] getCalibrationItems(TimeDiscretizationInterface liborPeriodDiscretization, ForwardCurveInterface forwardCurve, AbstractSwaptionMarketData swaptionMarketData, boolean isUseAnalyticApproximation) {
 		if(swaptionMarketData == null) return null;
 
@@ -728,17 +725,15 @@ public class LIBORMarketModel extends AbstractModel implements LIBORMarketModelI
 		return numeraires.get(timeIndex);
 	}
 	
-	@Override
 	public void clearNumeraireAdjustmentCache(){
 		numeraireAdjustmentCache.clear();
 	}
 	
-	@Override
 	public Map<Double, RandomVariableInterface> getNumeraireAdjustmentMap(){
 		return this.numeraireAdjustmentCache;
 	}
 	
-	@Override 
+	 
 	public RandomVariableInterface getNumeraireAdjustment(double time) throws CalculationException {
 		if(numeraireAdjustmentCache.containsKey(time)) return numeraireAdjustmentCache.get(time);
 		
@@ -772,7 +767,6 @@ public class LIBORMarketModel extends AbstractModel implements LIBORMarketModelI
 	 * @return P(T;t)
 	 * @throws CalculationException 
 	 */
-	@Override
 	public RandomVariableInterface getForwardBondLibor(double T, double t) throws CalculationException{
 		
 		int firstLiborIndex = getLiborPeriodIndex(t);
@@ -808,7 +802,6 @@ public class LIBORMarketModel extends AbstractModel implements LIBORMarketModelI
 	 * @return The forward bond P(T;t) on the OIS curve
 	 * @throws CalculationException
 	 */
-	@Override
 	public RandomVariableInterface getForwardBondOIS(double T, double t) throws CalculationException{
 		
 		// Get bondOIS = P^OIS(T;t) = P^L(T;t)*a_t/a_T

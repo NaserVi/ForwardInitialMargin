@@ -13,8 +13,9 @@ import java.util.concurrent.ConcurrentHashMap;
 
 import net.finmath.exception.CalculationException;
 import net.finmath.marketdata.model.AnalyticModelInterface;
-//import net.finmath.marketdata.model.curves.DiscountCurveInterface;
-import net.finmath.analytic.model.curves.DiscountCurveInterface;
+//import net.finmath.marketdata.model.AnalyticModelInterface;
+import net.finmath.marketdata.model.curves.DiscountCurveInterface;
+//import net.finmath.analytic.model.curves.DiscountCurveInterface;
 
 import net.finmath.marketdata.model.curves.ForwardCurveInterface;
 import net.finmath.montecarlo.RandomVariable;

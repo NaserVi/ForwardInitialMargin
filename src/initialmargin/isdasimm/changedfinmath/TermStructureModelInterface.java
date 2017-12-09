@@ -1,16 +1,15 @@
+package initialmargin.isdasimm.changedfinmath;
 /*
  * (c) Copyright Christian P. Fries, Germany. All rights reserved. Contact: email@christianfries.com.
  *
  * Created on 04.02.2016
  */
 
-package initialmargin.isdasimm.changedfinmath;
-
 import java.util.Map;
 
 import net.finmath.exception.CalculationException;
 import net.finmath.marketdata.model.AnalyticModelInterface;
-import net.finmath.analytic.model.curves.DiscountCurveInterface;
+import net.finmath.marketdata.model.curves.DiscountCurveInterface;
 import net.finmath.marketdata.model.curves.ForwardCurveInterface;
 import net.finmath.montecarlo.model.AbstractModelInterface;
 import net.finmath.stochastic.RandomVariableInterface;

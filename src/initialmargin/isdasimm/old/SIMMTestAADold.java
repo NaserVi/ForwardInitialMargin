@@ -14,8 +14,8 @@ import initialmargin.isdasimm.old.SIMMAADold.WeightToLiborAdjustmentMethod;
 
 import net.finmath.exception.CalculationException;
 import net.finmath.marketdata.model.curves.DiscountCurveFromForwardCurve;
-import net.finmath.analytic.model.curves.DiscountCurve;
-import net.finmath.analytic.model.curves.DiscountCurveInterface;
+import net.finmath.marketdata.model.curves.DiscountCurve;
+import net.finmath.marketdata.model.curves.DiscountCurveInterface;
 import net.finmath.marketdata.model.curves.ForwardCurve;
 import net.finmath.montecarlo.AbstractRandomVariableFactory;
 import net.finmath.montecarlo.BrownianMotionInterface;
@@ -59,7 +59,7 @@ public class SIMMTestAADold {
      	 // Create a Libor market Model
      	 DiscountCurve discountCurve = DiscountCurve.createDiscountCurveFromDiscountFactors("discountCurve",
      			                                                                            new double[] {0.5 , 1.0, 2.0, 5.0, 30.0} /*times*/,
-     			                                                                            getRVAAD(new double[] {0.996 , 0.995, 0.994, 0.993, 0.98}) /*discountFactors*/);
+     			                                                                            new double[] {0.996 , 0.995, 0.994, 0.993, 0.98} /*discountFactors*/);
      			                                                                            
      	 ForwardCurve  forwardCurve = ForwardCurve.createForwardCurveFromForwards("forwardCurve",
  					                                                              new double[] {0.5 , 1.0, 2.0, 5.0, 30.0}	/* fixings of the forward */,					                                                            
