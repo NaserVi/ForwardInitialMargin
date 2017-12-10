@@ -52,8 +52,8 @@ public class SIMMTest {
 	final static boolean isPrintPaths    = false;
 
 	final static boolean isCalculatePortfolio = false;
-	final static boolean isCalculateSwap      = true;
-	final static boolean isCalculateSwaption  = false;
+	final static boolean isCalculateSwap      = false;
+	final static boolean isCalculateSwaption  = true;
 	final static boolean isCalculateBermudan  = false;
 
 	public static void main(String[] args) throws CalculationException{
@@ -89,12 +89,12 @@ public class SIMMTest {
 //				0.5/* tenor / period length */);
 		
 	
-		LIBORModelMonteCarloSimulationInterface modell = createLIBORMarketModel(false,randomVariableFactory,100/*numberOfPaths*/, 1 /*numberOfFactors*/, 
+		LIBORModelMonteCarloSimulationInterface model = createLIBORMarketModel(false,randomVariableFactory,100/*numberOfPaths*/, 1 /*numberOfFactors*/, 
 				discountCurve,
 				forwardCurve);
 		
 		
-		LIBORModelMonteCarloSimulationInterface model = getZeroVolatilityModel(modell);
+		//LIBORModelMonteCarloSimulationInterface model = getZeroVolatilityModel(modell);
 		
 		
 		/*
@@ -117,7 +117,7 @@ public class SIMMTest {
 		 *  Create Products. Input for (Bermudan) Swaption
 		 */
 		double     exerciseTime     = 5.0;	// Exercise date //5
-		double     constantSwapRate = 0.9;
+		double     constantSwapRate = 0.012;
 		int        numberOfPeriods  = 10;
 		double     notional         = 100;
 		double[]   fixingDates     = new double[numberOfPeriods];
@@ -170,8 +170,6 @@ public class SIMMTest {
 		/*
 		 * Perform calculations
 		 */
-
-
 		// Portfolio
 		
 		if(isCalculatePortfolio){
@@ -383,6 +381,17 @@ public class SIMMTest {
 	}
 
 	
+	/** Create a LMM with a volatility structure calibrated to the swaption market Data as of December 8, 2017.
+	 * 
+	 * @param isUseTenorRefinement false, toDo: Include tenor refinement
+	 * @param randomVariableFactory The random variable factory (to be used for the volatility and covariance model and LMM)
+	 * @param numberOfPaths The number of paths of the simulation
+	 * @param numberOfFactors The number of factors
+	 * @param discountCurve The discount curve
+	 * @param forwardCurve The forwarding curve
+	 * @return
+	 * @throws CalculationException
+	 */
 	public static  LIBORModelMonteCarloSimulationInterface createLIBORMarketModel(boolean isUseTenorRefinement,
 										AbstractRandomVariableFactory randomVariableFactory,
 										int numberOfPaths, int numberOfFactors, DiscountCurve discountCurve, ForwardCurve forwardCurve) throws CalculationException {
