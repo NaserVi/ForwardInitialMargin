@@ -226,6 +226,7 @@ public class LMMCalibrationTest{
 				liborPeriodDiscretization,
 				null,
 				forwardCurve, discountCurve,
+				new RandomVariableFactory(), // No AAD here
 				covarianceModelBlended,
 				calibrationItemsLMM,
 				properties);
