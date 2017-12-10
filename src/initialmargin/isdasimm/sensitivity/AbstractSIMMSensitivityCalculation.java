@@ -2,6 +2,7 @@ package initialmargin.isdasimm.sensitivity;
 
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.stream.IntStream;
 
 import org.apache.commons.math3.linear.MatrixUtils;
 import org.apache.commons.math3.linear.RealMatrix;
@@ -441,24 +442,28 @@ public abstract class AbstractSIMMSensitivityCalculation {
 		 * @return The pseudo inverse of the matrix
 		 */
 	    public static RandomVariableInterface[][] getPseudoInverse(RandomVariableInterface[][] matrix, int numberOfPaths){
+
 	    	double[][][] inv = new double[matrix[0].length][matrix.length][numberOfPaths];
 			double[][] matrixOnPath = new double[matrix.length][matrix[0].length];
-			for(int pathIndex=0; pathIndex<numberOfPaths; pathIndex++){
-				// Get double[][] matrix on path
+			
+			IntStream.range(0, numberOfPaths).parallel().forEach(pathIndex -> {
 				for(int i=0;i<matrixOnPath.length;i++){
 					for(int j=0;j<matrixOnPath[0].length;j++){
 						matrixOnPath[i][j]=matrix[i][j]==null ? 0 : matrix[i][j].get(pathIndex);
 					}
 				}
-			    // Get Pseudo Inverse 
-			    RealMatrix pseudoInverse = new SingularValueDecomposition(MatrixUtils.createRealMatrix(matrixOnPath)).getSolver().getInverse();
-			    for(int j=0;j<pseudoInverse.getColumnDimension();j++){
-				    double[] columnValues = pseudoInverse.getColumn(j);
-				    for(int i=0;i<pseudoInverse.getRowDimension();i++){
-					    inv[i][j][pathIndex]= columnValues[i];
-				    }
-			    }
-			}
+				// Get Pseudo Inverse 
+				RealMatrix pseudoInverse = new SingularValueDecomposition(MatrixUtils.createRealMatrix(matrixOnPath)).getSolver().getInverse();
+				for(int j=0;j<pseudoInverse.getColumnDimension();j++){
+					double[] columnValues = pseudoInverse.getColumn(j);
+					for(int i=0;i<pseudoInverse.getRowDimension();i++){
+						inv[i][j][pathIndex]= columnValues[i];
+					}
+				}
+
+			});
+			
+			
 			// Wrap to RandomVariableInterface[][]
 			RandomVariableInterface[][] pseudoInverse = new RandomVariableInterface[matrix[0].length][matrix.length];
 			for(int i=0;i<pseudoInverse.length; i++){
@@ -466,6 +471,7 @@ public abstract class AbstractSIMMSensitivityCalculation {
 					pseudoInverse[i][j] = new RandomVariable(0.0 /*should be evaluationTime*/,inv[i][j]);
 				}
 			}
+			
 			return pseudoInverse;
 	    }
 	   
