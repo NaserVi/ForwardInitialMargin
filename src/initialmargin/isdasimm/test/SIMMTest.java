@@ -52,8 +52,8 @@ public class SIMMTest {
 	final static boolean isPrintPaths    = false;
 
 	final static boolean isCalculatePortfolio = false;
-	final static boolean isCalculateSwap      = false;
-	final static boolean isCalculateSwaption  = true;
+	final static boolean isCalculateSwap      = true;
+	final static boolean isCalculateSwaption  = false;
 	final static boolean isCalculateBermudan  = false;
 
 	public static void main(String[] args) throws CalculationException{
@@ -78,17 +78,30 @@ public class SIMMTest {
 				// Forward Rates                                                         
 				new double[] {-0.002630852,-6.82E-04,0.002757708,0.005260602,0.007848164,0.010749576,0.012628982,0.014583704,0.017103188,0.017791957,0.01917447,0.019788258,0.020269155,0.02327218,0.01577317,0.026503375,0.017980753,0.016047889,0.024898978,0.010798547,0.027070148,0.014816786,0.018220786,0.016549747,0.008028913,0.020022068,0.015134412,0.016604122,0.014386016,0.026732673,0.003643934,0.024595029,0.002432369,0.02233176,0.003397059,0.020576206},
 				0.5/* tenor / period length */);
-		LIBORModelMonteCarloSimulationInterface model = createLIBORMarketModel(false,randomVariableFactory,100/*numberOfPaths*/, 1 /*numberOfFactors*/, 
+		
+//		DiscountCurve discountCurve = DiscountCurve.createDiscountCurveFromDiscountFactors("discountCurve",
+//				new double[] {0.5 , 1.0, 2.0, 5.0, 30.0} /*times*/,
+//				new double[] {0.996 , 0.995, 0.994, 0.993, 0.98} /*discountFactors*/);
+//
+//		ForwardCurve  forwardCurve = ForwardCurve.createForwardCurveFromForwards("forwardCurve",
+//				new double[] {0.5 , 1.0, 2.0, 5.0, 30.0}	/* fixings of the forward */,					                                                            
+//				new double[] {0.02, 0.02, 0.02, 0.02, 0.02},
+//				0.5/* tenor / period length */);
+		
+	
+		LIBORModelMonteCarloSimulationInterface modell = createLIBORMarketModel(false,randomVariableFactory,100/*numberOfPaths*/, 1 /*numberOfFactors*/, 
 				discountCurve,
 				forwardCurve);
-
-		//LIBORModelMonteCarloSimulationInterface model = getZeroVolatilityModel(modell);
+		
+		
+		LIBORModelMonteCarloSimulationInterface model = getZeroVolatilityModel(modell);
+		
 		
 		/*
 		 *  Create Products. Input for Swap
 		 */
 		double     startTime            = 0.0;	// Exercise date
-		double     constantSwapRateSwap = 0.0;
+		double     constantSwapRateSwap = 0.013;
 		int        numberOfPeriodsSwap  = 10;
 		double     notionalSwap        = 100;
 		double[]   fixingDatesSwap     = new double[numberOfPeriodsSwap];
@@ -104,8 +117,8 @@ public class SIMMTest {
 		 *  Create Products. Input for (Bermudan) Swaption
 		 */
 		double     exerciseTime     = 5.0;	// Exercise date //5
-		double     constantSwapRate = -0.025;
-		int        numberOfPeriods  = 10;//20;
+		double     constantSwapRate = 0.9;
+		int        numberOfPeriods  = 10;
 		double     notional         = 100;
 		double[]   fixingDates     = new double[numberOfPeriods];
 		double[]   paymentDates    = new double[numberOfPeriods];
@@ -125,8 +138,6 @@ public class SIMMTest {
 		isPeriodStartDateExerciseDate[2]=true;
 		isPeriodStartDateExerciseDate[4]=true;
 		isPeriodStartDateExerciseDate[8]=true;
-
-     
 
 
 		/*
@@ -396,8 +407,24 @@ public class SIMMTest {
 		 */
 		final BrownianMotionInterface brownianMotion = new net.finmath.montecarlo.BrownianMotion(timeDiscretization, numberOfFactors, numberOfPaths, 31415 /* seed */);
 		
-		// Create a volatility model: Piecewise constant volatility
-		double[] volatility = new double[]{0.0035380523915104246,0.004191317634739811,0.008841173374561527,0.010367178689341235,0.009683514692001837,0.00881065062410322,0.005,0.005553622644567465,0.006240047498020553,0.008993528127078064,0.009894813615533201,0.009632854002962725,0.009785740680837035,0.0037906111648575865,0.014616121514330995,0.011590302354861921,
+		// Create a volatility model: Piecewise constant volatility calibrated to Swaption Normal implied volatility of December 8, 2017
+		double[] volatility = new double[]{
+		0.0035380523915104246,
+		0.004191317634739811,
+		0.008841173374561527,
+		0.010367178689341235,
+		0.009683514692001837,
+		0.00881065062410322,
+		0.005,
+		0.005553622644567465,
+		0.006240047498020553,
+		0.008993528127078064,
+		0.009894813615533201,
+		0.009632854002962725,
+		0.009785740680837035,
+		0.0037906111648575865,
+		0.014616121514330995,
+		0.011590302354861921,
 		0.012136753578600236,
 		0.009878601075748226,
 		0.008283683236194047,
@@ -420,8 +447,28 @@ public class SIMMTest {
 		0.005,
 		0.005};
 		
-		LIBORVolatilityModel volatilityModel = new LIBORVolatilityModelPiecewiseConstant(randomVariableFactory,timeDiscretization, liborPeriodDiscretization, new TimeDiscretization(0.00, 1.0, 2.0, 5.0, 10.0, 20.0, 30.0), new TimeDiscretization(0.00, 1.0, 2.0, 5.0, 10.0, 20.0, 30.0), volatility,false);
+		LIBORVolatilityModel volatilityModel = new LIBORVolatilityModelPiecewiseConstant(randomVariableFactory,timeDiscretization, liborPeriodDiscretization, new TimeDiscretization(0.00, 1.0, 2.0, 5.0, 10.0, 20.0, 30.0), new TimeDiscretization(0.00, 1.0, 2.0, 5.0, 10.0, 20.0, 30.0), /*new double[]{0.01}*/volatility,false);
 				
+//		double[][] volatility = new double[timeDiscretization.getNumberOfTimeSteps()][liborPeriodDiscretization.getNumberOfTimeSteps()];
+//		for (int timeIndex = 0; timeIndex < volatility.length; timeIndex++) {
+//			for (int liborIndex = 0; liborIndex < volatility[timeIndex].length; liborIndex++) {
+//				// Create a very simple volatility model here
+//				double time = timeDiscretization.getTime(timeIndex);
+//				double maturity = liborPeriodDiscretization.getTime(liborIndex);
+//				double timeToMaturity = maturity - time;
+//
+//				double instVolatility;
+//				if(timeToMaturity <= 0)
+//					instVolatility = 0;				// This forward rate is already fixed, no volatility
+//				else
+//					instVolatility = (0.2 + 0.2 * Math.exp(-0.4 * timeToMaturity))/25.0; // / 50 if statespace = normal
+//
+//				// Store
+//				volatility[timeIndex][liborIndex] = instVolatility;
+//			}
+//		}
+//		LIBORVolatilityModel volatilityModel = new LIBORVolatilityModelFromGivenMatrix(randomVariableFactory, timeDiscretization, liborPeriodDiscretization, volatility);
+//		
 		// Create a correlation model
 		LIBORCorrelationModel correlationModel = new LIBORCorrelationModelExponentialDecay(timeDiscretization, liborPeriodDiscretization, numberOfFactors, 0.04 /*correlationDecayParameter*/, false);
 		
@@ -469,17 +516,21 @@ public class SIMMTest {
 	}
 	
 	
-	
 	public static LIBORModelMonteCarloSimulationInterface getZeroVolatilityModel(LIBORModelMonteCarloSimulationInterface model) throws CalculationException{
 		
 		// Set brownian motion with one path
 		BrownianMotionInterface originalBM = model.getBrownianMotion();
-		BrownianMotionInterface brownianMotion = new BrownianMotion(originalBM.getTimeDiscretization(), originalBM.getNumberOfFactors(), 10 /* numberOfPaths */, 3141);
-        // Get process
+		BrownianMotionInterface brownianMotion = new BrownianMotion(originalBM.getTimeDiscretization(), originalBM.getNumberOfFactors(), 1 /* numberOfPaths */, 3141);
+        
+		// Get process
 		ProcessEulerScheme process = new ProcessEulerScheme(brownianMotion, ProcessEulerScheme.Scheme.EULER_FUNCTIONAL);
+		
 		// Create zero volatility model
-		double[][] volatility = new double[model.getTimeDiscretization().getNumberOfTimeSteps()][model.getLiborPeriodDiscretization().getNumberOfTimeSteps()];
-		LIBORVolatilityModel volatilityModel = new LIBORVolatilityModelFromGivenMatrix(new RandomVariableFactory(), model.getTimeDiscretization(), model.getLiborPeriodDiscretization(), volatility);
+		LIBORVolatilityModel volatilityModel = new LIBORVolatilityModelPiecewiseConstant(createRandomVariableFactoryAAD(),model.getTimeDiscretization(), model.getLiborPeriodDiscretization(), new TimeDiscretization(0.00, 1.0, 2.0, 5.0, 10.0, 20.0, 30.0), new TimeDiscretization(0.00, 1.0, 2.0, 5.0, 10.0, 20.0, 30.0), new double[]{0.0}/*volatility*/,false);
+
+		//double[][] volatility = new double[model.getTimeDiscretization().getNumberOfTimeSteps()][model.getLiborPeriodDiscretization().getNumberOfTimeSteps()];
+		//LIBORVolatilityModel volatilityModel = new LIBORVolatilityModelFromGivenMatrix(new RandomVariableFactory(), model.getTimeDiscretization(), model.getLiborPeriodDiscretization(), volatility);
+		
 		//Create a correlation model rho_{i,j} = exp(-a * abs(T_i-T_j))
 		LIBORCorrelationModelExponentialDecay correlationModel = new LIBORCorrelationModelExponentialDecay(model.getTimeDiscretization(), model.getLiborPeriodDiscretization(), model.getNumberOfFactors(),0);
 				
@@ -487,9 +538,13 @@ public class SIMMTest {
 		LIBORCovarianceModelFromVolatilityAndCorrelation covarianceModel =
 				new LIBORCovarianceModelFromVolatilityAndCorrelation(model.getTimeDiscretization(),
 						model.getLiborPeriodDiscretization(), volatilityModel, correlationModel);
+		
+		double displacementParameter = 0.5880313623110442;
+		AbstractLIBORCovarianceModelParametric covarianceModelBlended = new BlendedLocalVolatilityModel(createRandomVariableFactoryAAD(),covarianceModel, displacementParameter, false);
+
 
 		Map<String, Object> dataModified = new HashMap<>();
-		dataModified.put("covarianceModel", covarianceModel);
+		dataModified.put("covarianceModel", covarianceModelBlended);
 		return new LIBORModelMonteCarloSimulation((LIBORModelInterface)model.getModel().getCloneWithModifiedData(dataModified),process);
 		
 	}
