@@ -8,6 +8,7 @@ package initialmargin.isdasimm.changedfinmath;
 import java.util.Map;
 
 import net.finmath.exception.CalculationException;
+import net.finmath.montecarlo.AbstractRandomVariableFactory;
 import net.finmath.montecarlo.BrownianMotionInterface;
 //import net.finmath.montecarlo.interestrate.TermStructureModelMonteCarloSimulationInterface;
 import net.finmath.stochastic.RandomVariableInterface;
@@ -127,6 +128,11 @@ public interface LIBORModelMonteCarloSimulationInterface extends TermStructureMo
 	 */
 	RandomVariableInterface getForwardBondOIS(double T, double t) throws CalculationException;
 
+	/**
+	 * 
+	 * @return The random variable factory of this model
+	 */
+	public AbstractRandomVariableFactory getRandomVariableFactory();
 	/**
 	 * Return a clone of this model with a modified Brownian motion using a different seed.
 	 * 

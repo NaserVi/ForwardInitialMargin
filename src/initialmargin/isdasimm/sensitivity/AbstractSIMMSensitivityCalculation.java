@@ -27,10 +27,10 @@ public abstract class AbstractSIMMSensitivityCalculation {
     public boolean isConsiderOISSensitivities;
     
 	public enum SensitivityMode{
-    	LinearMelting,
-    	Interpolation,
-    	Exact, // AAD or Analytic (for Swaps)
-    	InterpolationOIS // Interpolate OIS sensitivities only 
+    	LinearMelting,    // Melting of sensitivties to zero until final maturity
+    	Interpolation,    // Interpolate OIS and Forward curve sensitivities between time points of exact AAD sensitivities
+    	Exact,            // AAD or Analytic (for Swaps)
+    	InterpolationOIS, // Interpolate OIS sensitivities only
     }
     
     protected SensitivityMode sensitivityMode;
@@ -505,4 +505,5 @@ public abstract class AbstractSIMMSensitivityCalculation {
 			}
 			return AB;
 		}
+		
 }

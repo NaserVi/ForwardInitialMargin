@@ -9,6 +9,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 import net.finmath.exception.CalculationException;
+import net.finmath.montecarlo.AbstractRandomVariableFactory;
 import net.finmath.montecarlo.BrownianMotionInterface;
 import net.finmath.montecarlo.process.AbstractProcess;
 import net.finmath.montecarlo.process.AbstractProcessInterface;
@@ -128,6 +129,11 @@ public class TermStructureModelMonteCarloSimulation implements LIBORModelMonteCa
 	@Override
 	public int getLiborPeriodIndex(double time) {
 		throw new UnsupportedOperationException();
+	}
+	
+	@Override
+	public AbstractRandomVariableFactory getRandomVariableFactory(){
+		return model.getRandomVariableFactory();
 	}
 
 	public int getNumberOfComponents() {
