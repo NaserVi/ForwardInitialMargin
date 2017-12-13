@@ -7,6 +7,7 @@ import java.util.Map;
 import java.util.stream.IntStream;
 
 import initialmargin.isdasimm.changedfinmath.LIBORMarketModel;
+import initialmargin.isdasimm.changedfinmath.LIBORMarketModel.StateSpace;
 import initialmargin.isdasimm.changedfinmath.LIBORMarketModelInterface;
 import initialmargin.isdasimm.changedfinmath.LIBORModelInterface;
 import initialmargin.isdasimm.changedfinmath.LIBORModelMonteCarloSimulation;
@@ -55,6 +56,9 @@ public class SIMMTest {
 	final static boolean isCalculateSwap      = false;
 	final static boolean isCalculateSwaption  = true;
 	final static boolean isCalculateBermudan  = false;
+	
+	// Model Paths 
+	final static int numberOfPaths = 1000;
 
 	public static void main(String[] args) throws CalculationException{
 
@@ -79,24 +83,13 @@ public class SIMMTest {
 				new double[] {-0.002630852,-6.82E-04,0.002757708,0.005260602,0.007848164,0.010749576,0.012628982,0.014583704,0.017103188,0.017791957,0.01917447,0.019788258,0.020269155,0.02327218,0.01577317,0.026503375,0.017980753,0.016047889,0.024898978,0.010798547,0.027070148,0.014816786,0.018220786,0.016549747,0.008028913,0.020022068,0.015134412,0.016604122,0.014386016,0.026732673,0.003643934,0.024595029,0.002432369,0.02233176,0.003397059,0.020576206},
 				0.5/* tenor / period length */);
 		
-//		DiscountCurve discountCurve = DiscountCurve.createDiscountCurveFromDiscountFactors("discountCurve",
-//				new double[] {0.5 , 1.0, 2.0, 5.0, 30.0} /*times*/,
-//				new double[] {0.996 , 0.995, 0.994, 0.993, 0.98} /*discountFactors*/);
-//
-//		ForwardCurve  forwardCurve = ForwardCurve.createForwardCurveFromForwards("forwardCurve",
-//				new double[] {0.5 , 1.0, 2.0, 5.0, 30.0}	/* fixings of the forward */,					                                                            
-//				new double[] {0.02, 0.02, 0.02, 0.02, 0.02},
-//				0.5/* tenor / period length */);
-		
-	
-		LIBORModelMonteCarloSimulationInterface model = createLIBORMarketModel(false,randomVariableFactory,500/*numberOfPaths*/, 1 /*numberOfFactors*/, 
+		LIBORModelMonteCarloSimulationInterface model = createLIBORMarketModel(false,randomVariableFactory,numberOfPaths, 1 /*numberOfFactors*/, 
 				discountCurve,
 				forwardCurve);
 		
+		LIBORModelMonteCarloSimulationInterface zeroVolatilityModel = getZeroVolatilityModel(model);
 		
-		//LIBORModelMonteCarloSimulationInterface model = getZeroVolatilityModel(modell);
-		
-		
+	
 		/*
 		 *  Create Products. Input for Swap
 		 */
@@ -117,7 +110,7 @@ public class SIMMTest {
 		 *  Create Products. Input for (Bermudan) Swaption
 		 */
 		double     exerciseTime     = 5.0;	// Exercise date //5
-		double     constantSwapRate = 0.013;
+		double     constantSwapRate = 0.0;
 		int        numberOfPeriods  = 10;
 		double     notional         = 100;
 		double[]   fixingDates     = new double[numberOfPeriods];
@@ -218,7 +211,7 @@ public class SIMMTest {
 		// Swap
 
 		if(isCalculateSwap){
-			RandomVariableInterface[][] valuesSwap = new RandomVariableInterface[4][(int)(finalIMTime/timeStep)+1];
+			RandomVariableInterface[][] valuesSwap = new RandomVariableInterface[5][(int)(finalIMTime/timeStep)+1];
 
 			timeStart = System.currentTimeMillis();
 			for(int i=0;i<finalIMTime/timeStep+1;i++) valuesSwap[0][i] = SIMMSwap.getInitialMargin(i*timeStep, model, "EUR", SensitivityMode.Exact, WeightMode.Constant, 1.0, isUseTimeGridAdjustment, isUseAnalyticSwapSensis, isConsiderOISSensis);
@@ -244,11 +237,17 @@ public class SIMMTest {
 
 			System.out.println("Time for SWAP, AAD in every step, stochastic weights " + formatterTime.format((timeEnd-timeStart)/1000.0)+"s");
 
+			timeStart = System.currentTimeMillis();
+			for(int i=0;i<finalIMTime/timeStep+1;i++) valuesSwap[4][i] = SIMMSwap.getInitialMargin(i*timeStep, zeroVolatilityModel, "EUR", SensitivityMode.Exact, WeightMode.Constant, interpolationStep, isUseTimeGridAdjustment, isUseAnalyticSwapSensis, isConsiderOISSensis);
+			timeEnd = System.currentTimeMillis();
+			
+			System.out.println("Time for SWAP, one path ageing " + formatterTime.format((timeEnd-timeStart)/1000.0)+"s");
+			
 			if(isPrintAverage){	   
 				System.out.println("Expected Forward IM for Swap");
-				System.out.println("Exact, constant weights" + "\t" + "Exact, stochastic weights" + "\t" + "Melting " + "\t" + "Interpolation");
+				System.out.println("Exact, constant weights" + "\t" + "Exact, stochastic weights" + "\t" + "Melting " + "\t" + "Interpolation" + "\t" + "OnePathAgeing");
 				for(int i=0;i<finalIMTime/timeStep+1;i++){
-					System.out.println(valuesSwap[0][i].getAverage() + "\t" + valuesSwap[3][i].getAverage() + "\t" + valuesSwap[1][i].getAverage());
+					System.out.println(valuesSwap[0][i].getAverage() + "\t" + valuesSwap[3][i].getAverage() + "\t" + valuesSwap[1][i].getAverage() + "\t" + valuesSwap[2][i].getAverage() + "\t" + valuesSwap[4][i].getAverage());
 				}
 			}
 			if(isPrintQuantile){
@@ -296,11 +295,17 @@ public class SIMMTest {
 
 			System.out.println("Time for SWAPTION, Interpolation with step " + interpolationStep + ": " + formatterTime.format((timeEnd-timeStart)/1000.0)+"s");
 
+			timeStart = System.currentTimeMillis();
+			for(int i=0;i<finalIMTime/timeStep+1;i++) valuesSwaption[3][i] = SIMMSwaption.getInitialMargin(i*timeStep, zeroVolatilityModel, "EUR", SensitivityMode.Exact, WeightMode.Constant, interpolationStep, isUseTimeGridAdjustment, isUseAnalyticSwapSensis, isConsiderOISSensis);
+			timeEnd = System.currentTimeMillis();
+
+			System.out.println("Time for SWAPTION, one path ageing: " + formatterTime.format((timeEnd-timeStart)/1000.0)+"s");
+
 			if(isPrintAverage){	   
 				System.out.println("Expected Forward IM for Swaption");
-				System.out.println("Exact, constant weights" + "\t" + "Melting " + "\t" + "Interpolation");
+				System.out.println("Exact, constant weights" + "\t" + "Melting " + "\t" + "Interpolation" + "\t" + "OnePathAgeing");
 				for(int i=0;i<finalIMTime/timeStep+1;i++){
-					System.out.println(valuesSwaption[0][i].getAverage() + "\t" + valuesSwaption[1][i].getAverage() + "\t" + valuesSwaption[2][i].getAverage());
+					System.out.println(valuesSwaption[0][i].getAverage() + "\t" + valuesSwaption[1][i].getAverage() + "\t" + valuesSwaption[2][i].getAverage() + "\t" + valuesSwaption[3][i].getAverage());
 				}
 			}
 			if(isPrintQuantile){
@@ -349,11 +354,17 @@ public class SIMMTest {
 
 			System.out.println("Time for BERMUDAN, Interpolation with step " + interpolationStep + ": " + formatterTime.format((timeEnd-timeStart)/1000.0)+"s");
 
+			timeStart = System.currentTimeMillis();
+			for(int i=0;i<finalIMTime/timeStep+1;i++) valuesBermudan[3][i] = SIMMBermudan.getInitialMargin(i*timeStep, zeroVolatilityModel, "EUR", SensitivityMode.Exact, WeightMode.Constant, interpolationStep, isUseTimeGridAdjustment, true, isConsiderOISSensis);
+			timeEnd = System.currentTimeMillis();
+
+			System.out.println("Time for BERMUDAN, one path ageing: " + formatterTime.format((timeEnd-timeStart)/1000.0)+"s");
+
 			if(isPrintAverage){	   
 				System.out.println("Expected Forward IM for Bermudan");
-				System.out.println("Exact" + "\t" + "Melting " + "\t" + "Interpolation");
+				System.out.println("Exact" + "\t" + "Melting " + "\t" + "Interpolation" + "\t" + "OnePathAgeing");
 				for(int i=0;i<finalIMTime/timeStep+1;i++){
-					System.out.println(valuesBermudan[0][i].getAverage() + "\t" + valuesBermudan[1][i].getAverage() + "\t" + valuesBermudan[2][i].getAverage());
+					System.out.println(valuesBermudan[0][i].getAverage() + "\t" + valuesBermudan[1][i].getAverage() + "\t" + valuesBermudan[2][i].getAverage() + "\t" + valuesBermudan[3][i].getAverage());
 				}
 			}
 			if(isPrintQuantile){
@@ -515,7 +526,6 @@ public class SIMMTest {
 		return rv;
 	}
 	
-	
 	public static LIBORModelMonteCarloSimulationInterface getZeroVolatilityModel(LIBORModelMonteCarloSimulationInterface model) throws CalculationException{
 		
 		// Set brownian motion with one path
@@ -526,11 +536,8 @@ public class SIMMTest {
 		ProcessEulerScheme process = new ProcessEulerScheme(brownianMotion, ProcessEulerScheme.Scheme.EULER_FUNCTIONAL);
 		
 		// Create zero volatility model
-		LIBORVolatilityModel volatilityModel = new LIBORVolatilityModelPiecewiseConstant(createRandomVariableFactoryAAD(),model.getTimeDiscretization(), model.getLiborPeriodDiscretization(), new TimeDiscretization(0.00, 1.0, 2.0, 5.0, 10.0, 20.0, 30.0), new TimeDiscretization(0.00, 1.0, 2.0, 5.0, 10.0, 20.0, 30.0), new double[]{0.0}/*volatility*/,false);
+		LIBORVolatilityModel volatilityModel = new LIBORVolatilityModelPiecewiseConstant(model.getRandomVariableFactory(),model.getTimeDiscretization(), model.getLiborPeriodDiscretization(), new TimeDiscretization(0.00, 1.0, 2.0, 5.0, 10.0, 20.0, 30.0), new TimeDiscretization(0.00, 1.0, 2.0, 5.0, 10.0, 20.0, 30.0), new double[]{0.0}/*volatility*/,false);
 
-		//double[][] volatility = new double[model.getTimeDiscretization().getNumberOfTimeSteps()][model.getLiborPeriodDiscretization().getNumberOfTimeSteps()];
-		//LIBORVolatilityModel volatilityModel = new LIBORVolatilityModelFromGivenMatrix(new RandomVariableFactory(), model.getTimeDiscretization(), model.getLiborPeriodDiscretization(), volatility);
-		
 		//Create a correlation model rho_{i,j} = exp(-a * abs(T_i-T_j))
 		LIBORCorrelationModelExponentialDecay correlationModel = new LIBORCorrelationModelExponentialDecay(model.getTimeDiscretization(), model.getLiborPeriodDiscretization(), model.getNumberOfFactors(),0);
 				
@@ -539,17 +546,26 @@ public class SIMMTest {
 				new LIBORCovarianceModelFromVolatilityAndCorrelation(model.getTimeDiscretization(),
 						model.getLiborPeriodDiscretization(), volatilityModel, correlationModel);
 		
-		double displacementParameter = 0.5880313623110442;
-		AbstractLIBORCovarianceModelParametric covarianceModelBlended = new BlendedLocalVolatilityModel(createRandomVariableFactoryAAD(),covarianceModel, displacementParameter, false);
-
-
+		AbstractLIBORCovarianceModelParametric covarianceModelBlended = new BlendedLocalVolatilityModel(model.getRandomVariableFactory(),covarianceModel, 0.0/*displacementParameter*/, false);
+	
 		Map<String, Object> dataModified = new HashMap<>();
 		dataModified.put("covarianceModel", covarianceModelBlended);
 		return new LIBORModelMonteCarloSimulation((LIBORModelInterface)model.getModel().getCloneWithModifiedData(dataModified),process);
 		
 	}
 	
-	
+	public static Map<String, Object> getModelPropertiesMap(LIBORMarketModel.Measure measure, LIBORMarketModel.StateSpace stateSpace){
+		Map<String, Object> properties = new HashMap<String, Object>();
+
+		// simulation measure
+		properties.put("measure", measure.name());
+
+		// Choose normal state space for the Euler scheme since we use a blended local volatiltiy model
+		properties.put("stateSpace", stateSpace.name());
+
+		return properties;
+	}
+
 
 }
 
