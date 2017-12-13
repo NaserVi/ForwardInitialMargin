@@ -130,7 +130,7 @@ public abstract class AbstractSIMMProduct implements SIMMProductInterface {
  		if(evaluationTime >= getFinalMaturity()) return new RandomVariable(0.0);
  		
  		if(this.modelCache==null || !model.equals(this.modelCache) || (sensitivityCalculationScheme!=null && (sensitivityMode !=sensitivityCalculationScheme.getSensitivityMode() || liborWeightMode !=sensitivityCalculationScheme.getWeightMode()))) { // At inception (t=0) or if the model is reset            
- 	        setGradient(model); // Set the (new) gradient. The method setModel also clears the sensitivity maps and sets the model as modelCache.
+ 			setGradient(model); // Set the (new) gradient. The method setModel also clears the sensitivity maps and sets the model as modelCache.
  	        this.exerciseIndicator = null;
  	        this.exactDeltaCache.clear();
  	        this.sensitivityCalculationScheme = new SIMMSensitivityCalculation(sensitivityMode, liborWeightMode, interpolationStep, model, isUseTimeGridAdjustment, isUseAnalyticSwapSensis, isConsiderOISSensitivities);
