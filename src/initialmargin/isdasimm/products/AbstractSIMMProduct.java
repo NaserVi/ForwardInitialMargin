@@ -375,10 +375,7 @@ public abstract class AbstractSIMMProduct implements SIMMProductInterface {
 	
 	       // Return zero if evaluationTime is later than the last time where an adjustment is available (i.e. the last time where a cash flow occurred)
 	       if(!adjustmentMap.keySet().stream().filter(time -> time > evaluationTime).findAny().isPresent()){
-		  
-		      RandomVariableInterface zero = new RandomVariable(0.0);
-		      return AbstractSIMMSensitivityCalculation.mapSensitivitiesOnBuckets(new RandomVariableInterface[]{zero}, riskClass, new int[]{17},model);
-	   
+		      return zeroBucketsIR;
 	       }
 	
 	       // Calculate adjustment at evaluationTime

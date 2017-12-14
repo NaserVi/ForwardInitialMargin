@@ -40,7 +40,7 @@ public abstract class AbstractSIMMSensitivityCalculation {
 		Stochastic //Calculate dL/dS(t) for all forward IM times, i.e. (weakly) stochastic weight adjustment 
 	}
     
-    private WeightMode liborWeightMethod;
+    private WeightMode liborWeightMethod;  
     private HashMap<Double /*time*/, RandomVariableInterface[][]> riskWeightMap = new HashMap<>();
     
     

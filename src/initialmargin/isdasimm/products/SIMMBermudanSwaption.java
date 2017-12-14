@@ -110,7 +110,6 @@ public class SIMMBermudanSwaption extends AbstractSIMMProduct{
 				  RandomVariableInterface[][] dLdL =  AbstractSIMMSensitivityCalculation.getLiborTimeGridAdjustment(evaluationTime, model);	   
 				  RandomVariableInterface[] swapSensis = AbstractSIMMSensitivityCalculation.multiply(swapSensisAna,dLdL);
 			   
-				  //for(int i=0; i<swapSensis.length; i++) System.out.println("SwapsensisANA " + swapSensis[i].getAverage());
 				  if(evaluationTime>=bermudan.getExerciseTimes()[bermudan.getExerciseTimes().length-1]) {
 			    		
 					    // Set sensis of not exercised paths to zero
@@ -136,8 +135,6 @@ public class SIMMBermudanSwaption extends AbstractSIMMProduct{
 				   break;
 			}		
 		}
-		
-		//for(int i=0; i<bermudanSensis.length; i++) System.out.println("L " + evaluationTime + " "+ bermudanSensis[i].getAverage());
 		
 		return bermudanSensis;
 	}
@@ -232,32 +229,24 @@ public class SIMMBermudanSwaption extends AbstractSIMMProduct{
 		         // Get swap sensis
 		         RandomVariableInterface[] swapSensis = getSwapSensitivitiesFromCache(curveIndexName);
 		   
-		         //for(int i=0; i<swapSensis.length; i++) System.out.println("Swapsensis " + swapSensis[i].getAverage());
 		         // Melt swap sensis
 		         double initialMeltingTime = swap.getStartTime();
 		         RandomVariableInterface[] meltedSwapSensis = sensitivityCalculationScheme.getMeltedSensitivities(this, swapSensis, initialMeltingTime, evaluationTime, curveIndexName, "InterestRate");
 		   
 		         // Put swap sensis on exercised paths
-		         //for(int i=0; i<meltedSwapSensis.length; i++) System.out.println("SwapsensisMelted " + meltedSwapSensis[i].getAverage());
-		         //for(int i=0; i<meltedBermudanSensis.length; i++) System.out.println("Bersensis1 " + meltedBermudanSensis[i].getAverage());
-		         
 		         for(int i=0;i <meltedBermudanSensis.length;i++) meltedBermudanSensis[i] = meltedBermudanSensis[i].barrier(indicator, meltedSwapSensis[i], meltedBermudanSensis[i]);
 		      
-		         //for(int i=0; i<meltedBermudanSensis.length; i++) System.out.println("Bersensis2 " + meltedBermudanSensis[i].getAverage());
 				 if(evaluationTime>=bermudan.getExerciseTimes()[bermudan.getExerciseTimes().length-1]) {
 			    		
 					  // Set sensis of not exercised paths to zero
 			    	  for(int i=0; i<meltedBermudanSensis.length;i++) meltedBermudanSensis[i] = meltedBermudanSensis[i].barrier(indicator,meltedSwapSensis[i],new RandomVariable(0.0));
-			 			    	    	
-			    	  //for(int i=0; i<meltedBermudanSensis.length; i++) System.out.println("Bersensis3 " + meltedBermudanSensis[i].getAverage());
+			 			    	    				    	 
 				 } else {
 			    	    			    	
 				      // Set sensitivities on paths: Bermudan sensis if not exercised, swap sensis if exercised.
 				      for(int i=0; i<meltedBermudanSensis.length;i++) meltedBermudanSensis[i] = meltedBermudanSensis[i].barrier(indicator, meltedSwapSensis[i], meltedBermudanSensis[i]);
 			   	
 				 }
-				 
-				 //for(int i=0; i<meltedBermudanSensis.length; i++) System.out.println("Swapsensis " + meltedBermudanSensis[i].getAverage());
 				 
 		         break;
 		      
