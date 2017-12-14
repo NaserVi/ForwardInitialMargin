@@ -8,6 +8,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 import org.apache.commons.lang3.ArrayUtils;
 
@@ -58,7 +59,8 @@ public abstract class AbstractSIMMProduct implements SIMMProductInterface {
     private   CalculationSchemeInitialMarginISDA simmScheme;
     
     
-    final private String[]  IRMaturityBuckets = {"2w","1m","3m","6m","1y","2y","3y","5y","10y","15y","20y","30y"};
+    public static final String[]  IRMaturityBuckets = {"2w","1m","3m","6m","1y","2y","3y","5y","10y","15y","20y","30y"};
+    public static final RandomVariableInterface[] zeroBucketsIR = IntStream.range(0, IRMaturityBuckets.length).mapToObj(i->new RandomVariable(0.0)).toArray(RandomVariableInterface[]::new);
     
     // Define the sensitivity maps.
     /**
