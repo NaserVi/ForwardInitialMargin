@@ -149,7 +149,7 @@ public class SIMMBermudanSwaption extends AbstractSIMMProduct{
 																   LIBORModelMonteCarloSimulationInterface model) throws CalculationException {
 		
 		// Get Bermudan sensitivities
-		double[] futureDiscountTimes = null; // the times of the times after evaluation time at which the numeraire has been used for this product
+		double[] futureDiscountTimes = null; // the vector of the times after evaluation time at which the numeraire has been used for this product
 		RandomVariableInterface[] dVdP = null;
 		RandomVariableInterface[] bermudanSensis = getDiscountCurveSensitivities(evaluationTime, futureDiscountTimes, dVdP /* null => use AAD*/, riskClass, model);
 
@@ -167,10 +167,7 @@ public class SIMMBermudanSwaption extends AbstractSIMMProduct{
 				   
 				    // Return zero if evaluationTime is later than the last time where an adjustment is available (i.e. the last time where a cash flow occurred)
 					if(!Arrays.stream(swap.getPaymentDates()).filter(time -> time > evaluationTime).findAny().isPresent()){
-												
-								   RandomVariableInterface zero = new RandomVariable(0.0);
-								   return AbstractSIMMSensitivityCalculation.mapSensitivitiesOnBuckets(new RandomVariableInterface[]{zero}, riskClass, new int[]{17},model);
-											
+						return zeroBucketsIR; // @Todo distinguish risk class 										   		
 					}
 			
 				   // Get Swap Sensitivities analytically		
@@ -206,8 +203,6 @@ public class SIMMBermudanSwaption extends AbstractSIMMProduct{
 			
 		}
 
-		//for(int i=0; i<bermudanSensis.length; i++) System.out.println("OIS " + evaluationTime + " "+ bermudanSensis[i].getAverage());
-		
 	    return bermudanSensis;
 	    
 	}
