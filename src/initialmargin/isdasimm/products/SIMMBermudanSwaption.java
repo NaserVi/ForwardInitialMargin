@@ -110,7 +110,6 @@ public class SIMMBermudanSwaption extends AbstractSIMMProduct{
 				  RandomVariableInterface[][] dLdL =  AbstractSIMMSensitivityCalculation.getLiborTimeGridAdjustment(evaluationTime, model);	   
 				  RandomVariableInterface[] swapSensis = AbstractSIMMSensitivityCalculation.multiply(swapSensisAna,dLdL);
 			   
-				  //for(int i=0; i<swapSensis.length; i++) System.out.println("SwapsensisANA " + swapSensis[i].getAverage());
 				  if(evaluationTime>=bermudan.getExerciseTimes()[bermudan.getExerciseTimes().length-1]) {
 			    		
 					    // Set sensis of not exercised paths to zero
@@ -137,8 +136,6 @@ public class SIMMBermudanSwaption extends AbstractSIMMProduct{
 			}		
 		}
 		
-		//for(int i=0; i<bermudanSensis.length; i++) System.out.println("L " + evaluationTime + " "+ bermudanSensis[i].getAverage());
-		
 		return bermudanSensis;
 	}
 	
@@ -149,7 +146,7 @@ public class SIMMBermudanSwaption extends AbstractSIMMProduct{
 																   LIBORModelMonteCarloSimulationInterface model) throws CalculationException {
 		
 		// Get Bermudan sensitivities
-		double[] futureDiscountTimes = null; // the times of the times after evaluation time at which the numeraire has been used for this product
+		double[] futureDiscountTimes = null; // the vector of the times after evaluation time at which the numeraire has been used for this product
 		RandomVariableInterface[] dVdP = null;
 		RandomVariableInterface[] bermudanSensis = getDiscountCurveSensitivities(evaluationTime, futureDiscountTimes, dVdP /* null => use AAD*/, riskClass, model);
 
@@ -167,10 +164,7 @@ public class SIMMBermudanSwaption extends AbstractSIMMProduct{
 				   
 				    // Return zero if evaluationTime is later than the last time where an adjustment is available (i.e. the last time where a cash flow occurred)
 					if(!Arrays.stream(swap.getPaymentDates()).filter(time -> time > evaluationTime).findAny().isPresent()){
-												
-								   RandomVariableInterface zero = new RandomVariable(0.0);
-								   return AbstractSIMMSensitivityCalculation.mapSensitivitiesOnBuckets(new RandomVariableInterface[]{zero}, riskClass, new int[]{17},model);
-											
+						return zeroBucketsIR; // @Todo distinguish risk class 										   		
 					}
 			
 				   // Get Swap Sensitivities analytically		
@@ -206,8 +200,6 @@ public class SIMMBermudanSwaption extends AbstractSIMMProduct{
 			
 		}
 
-		//for(int i=0; i<bermudanSensis.length; i++) System.out.println("OIS " + evaluationTime + " "+ bermudanSensis[i].getAverage());
-		
 	    return bermudanSensis;
 	    
 	}
@@ -237,32 +229,24 @@ public class SIMMBermudanSwaption extends AbstractSIMMProduct{
 		         // Get swap sensis
 		         RandomVariableInterface[] swapSensis = getSwapSensitivitiesFromCache(curveIndexName);
 		   
-		         //for(int i=0; i<swapSensis.length; i++) System.out.println("Swapsensis " + swapSensis[i].getAverage());
 		         // Melt swap sensis
 		         double initialMeltingTime = swap.getStartTime();
 		         RandomVariableInterface[] meltedSwapSensis = sensitivityCalculationScheme.getMeltedSensitivities(this, swapSensis, initialMeltingTime, evaluationTime, curveIndexName, "InterestRate");
 		   
 		         // Put swap sensis on exercised paths
-		         //for(int i=0; i<meltedSwapSensis.length; i++) System.out.println("SwapsensisMelted " + meltedSwapSensis[i].getAverage());
-		         //for(int i=0; i<meltedBermudanSensis.length; i++) System.out.println("Bersensis1 " + meltedBermudanSensis[i].getAverage());
-		         
 		         for(int i=0;i <meltedBermudanSensis.length;i++) meltedBermudanSensis[i] = meltedBermudanSensis[i].barrier(indicator, meltedSwapSensis[i], meltedBermudanSensis[i]);
 		      
-		         //for(int i=0; i<meltedBermudanSensis.length; i++) System.out.println("Bersensis2 " + meltedBermudanSensis[i].getAverage());
 				 if(evaluationTime>=bermudan.getExerciseTimes()[bermudan.getExerciseTimes().length-1]) {
 			    		
 					  // Set sensis of not exercised paths to zero
 			    	  for(int i=0; i<meltedBermudanSensis.length;i++) meltedBermudanSensis[i] = meltedBermudanSensis[i].barrier(indicator,meltedSwapSensis[i],new RandomVariable(0.0));
-			 			    	    	
-			    	  //for(int i=0; i<meltedBermudanSensis.length; i++) System.out.println("Bersensis3 " + meltedBermudanSensis[i].getAverage());
+			 			    	    				    	 
 				 } else {
 			    	    			    	
 				      // Set sensitivities on paths: Bermudan sensis if not exercised, swap sensis if exercised.
 				      for(int i=0; i<meltedBermudanSensis.length;i++) meltedBermudanSensis[i] = meltedBermudanSensis[i].barrier(indicator, meltedSwapSensis[i], meltedBermudanSensis[i]);
 			   	
 				 }
-				 
-				 //for(int i=0; i<meltedBermudanSensis.length; i++) System.out.println("Swapsensis " + meltedBermudanSensis[i].getAverage());
 				 
 		         break;
 		      
@@ -345,20 +329,20 @@ public class SIMMBermudanSwaption extends AbstractSIMMProduct{
 		
 		// Create a conditional expectation estimator with some basis functions (predictor variables) for conditional expectation estimation.
         RandomVariableInterface[] regressor = new RandomVariableInterface[2];
-        regressor[0]= modelCache.getLIBOR(evaluationTime, evaluationTime,evaluationTime+modelCache.getLiborPeriodDiscretization().getTimeStep(0)).mult(indicator);
-		regressor[1]= modelCache.getLIBOR(evaluationTime, evaluationTime, modelCache.getLiborPeriodDiscretization().getTime(modelCache.getNumberOfLibors()-1)).mult(indicator);
-       	ArrayList<RandomVariableInterface> basisFunctions = getRegressionBasisFunctions(regressor, 2);
+        regressor[0]= modelCache.getLIBOR(evaluationTime, evaluationTime,evaluationTime+modelCache.getLiborPeriodDiscretization().getTimeStep(0));
+		regressor[1]= modelCache.getLIBOR(evaluationTime, evaluationTime, modelCache.getLiborPeriodDiscretization().getTime(modelCache.getNumberOfLibors()-1));
+       	ArrayList<RandomVariableInterface> basisFunctions = getRegressionBasisFunctions(regressor, 2, indicator);
        	this.conditionalExpectationOperator = new MonteCarloConditionalExpectationRegression(basisFunctions.toArray(new RandomVariableInterface[0]));
 
 	}
 	
-	private static ArrayList<RandomVariableInterface> getRegressionBasisFunctions(RandomVariableInterface[] libors, int order) {
+	private static ArrayList<RandomVariableInterface> getRegressionBasisFunctions(RandomVariableInterface[] libors, int order, RandomVariableInterface indicator) {
 		ArrayList<RandomVariableInterface> basisFunctions = new ArrayList<RandomVariableInterface>();
 		// Create basis functions - here: 1, S, S^2, S^3, S^4
 		
 		for(int liborIndex=0; liborIndex<libors.length;liborIndex++){
 		  for(int powerOfRegressionMonomial=0; powerOfRegressionMonomial<=order; powerOfRegressionMonomial++) {
-			  basisFunctions.add(libors[liborIndex].pow(powerOfRegressionMonomial));
+			  basisFunctions.add(libors[liborIndex].pow(powerOfRegressionMonomial).mult(indicator));
 		  }
 		  
 		}

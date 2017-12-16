@@ -7,6 +7,12 @@ import initialmargin.isdasimm.sensitivity.AbstractSIMMSensitivityCalculation.Wei
 import net.finmath.exception.CalculationException;
 import net.finmath.stochastic.RandomVariableInterface;
 
+/**This class facilitates / expedites the initial margin calculation in the spreadsheet 
+ * SIMMProductTest.xlsx
+ * 
+ * @author Mario Viehmann
+ *
+ */
 public class SIMMProductFigures {
 
 	private LIBORModelMonteCarloSimulationInterface model;
@@ -15,18 +21,22 @@ public class SIMMProductFigures {
 	private SensitivityMode sensitivityMode;
 	private double interpolationStep;
 	private boolean isUseAnalyticSensitivities;
+	private boolean isUseTimeGridAdjustment;
+	private boolean isConsiderOISSensis;
 	private double timeStep;
 	private double finalTime;
 	private RandomVariableInterface[] forwardIM = null;
 	
 	public SIMMProductFigures(LIBORModelMonteCarloSimulationInterface model, AbstractSIMMProduct product, WeightMode weightMode, SensitivityMode sensitivityMode,
-			double interpolationStep, boolean isUseAnalyticSensitivities, double timeStep, double finalTime){
+			double interpolationStep, boolean isUseAnalyticSensitivities, boolean isUseTimeGridAdjustment, boolean isConsiderOISSensis, double timeStep, double finalTime){
 		this.model = model;
 		this.product = product;
 		this.weightMode = weightMode;
 		this.sensitivityMode= sensitivityMode;
 		this.interpolationStep= interpolationStep;
 		this.isUseAnalyticSensitivities= isUseAnalyticSensitivities;
+		this.isUseTimeGridAdjustment=isUseTimeGridAdjustment;
+		this.isConsiderOISSensis = isConsiderOISSensis;
 		this.timeStep= timeStep;
 		this.finalTime=finalTime;
 	}
@@ -55,7 +65,7 @@ public class SIMMProductFigures {
 	private void doCalculateIM() throws CalculationException{
 	   this.forwardIM = new RandomVariableInterface[(int)(finalTime/timeStep)+1];
 	   for(int i=0;i<=(int)(finalTime/timeStep);i++) {
-		   forwardIM[i] = product.getInitialMargin(i*timeStep, model, "EUR", sensitivityMode, weightMode, interpolationStep, true /* isUseTimeGridAdjustment */, isUseAnalyticSensitivities, true /* isConsiderOISSensis */);
+		   forwardIM[i] = product.getInitialMargin(i*timeStep, model, "EUR", sensitivityMode, weightMode, interpolationStep, isUseTimeGridAdjustment, isUseAnalyticSensitivities, isConsiderOISSensis);
 	   }
     }
 	

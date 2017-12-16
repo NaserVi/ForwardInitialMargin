@@ -38,18 +38,20 @@ import net.finmath.optimizer.OptimizerFactoryInterface;
 import net.finmath.optimizer.OptimizerFactoryLevenbergMarquardt;
 import net.finmath.optimizer.SolverException;
 import net.finmath.time.TimeDiscretization;
+import net.finmath.time.businessdaycalendar.BusinessdayCalendar;
 import net.finmath.time.businessdaycalendar.BusinessdayCalendarExcludingTARGETHolidays;
+import net.finmath.time.daycount.DayCountConventionInterface;
 import net.finmath.time.daycount.DayCountConvention_ACT_365;
 
 /*
- * Modified code from net.finmath.montecarlo.interestrate.LIBORMarketModelCalibrationTest
+ * Modified code. Source: net.finmath.montecarlo.interestrate.LIBORMarketModelCalibrationTest
  */
 public class LMMCalibrationTest{
 	private static DecimalFormat formatterValue		= new DecimalFormat(" ##0.000%;-##0.000%", new DecimalFormatSymbols(Locale.ENGLISH));
 	private static DecimalFormat formatterDeviation	= new DecimalFormat(" 0.00000E00;-0.00000E00", new DecimalFormatSymbols(Locale.ENGLISH));
 	
 
-	private CalibrationItem createCalibrationItem(double weight, double exerciseDate, double swapPeriodLength, int numberOfPeriods, double moneyness, double targetVolatility, String targetVolatilityType, ForwardCurveInterface forwardCurve, DiscountCurveInterface discountCurve) throws CalculationException {
+	public static CalibrationItem createCalibrationItem(double weight, double exerciseDate, double swapPeriodLength, int numberOfPeriods, double moneyness, double targetVolatility, String targetVolatilityType, ForwardCurveInterface forwardCurve, DiscountCurveInterface discountCurve) throws CalculationException {
 
 		double[]	fixingDates			= new double[numberOfPeriods];
 		double[]	paymentDates		= new double[numberOfPeriods];
@@ -78,7 +80,8 @@ public class LMMCalibrationTest{
 //		double targetValuePrice = AnalyticFormulas.blackModelSwaptionValue(swaprate, targetVolatility, fixingDates[0], swaprate, getSwapAnnuity(discountCurve, swapTenor));
 		return new CalibrationItem(swaptionMonteCarlo, targetVolatility, weight);
 	}
-/**
+	
+   /**
 	 * Brute force Monte-Carlo calibration of swaptions.
 	 * 
 	 * @throws CalculationException
@@ -268,7 +271,98 @@ public class LMMCalibrationTest{
 		Assert.assertTrue(Math.abs(averageDeviation) < 1E-3);
 	}
 	
-	private static double getParSwaprate(ForwardCurveInterface forwardCurve, DiscountCurveInterface discountCurve, double[] swapTenor) throws CalculationException {
+	public static double getParSwaprate(ForwardCurveInterface forwardCurve, DiscountCurveInterface discountCurve, double[] swapTenor) throws CalculationException {
 		return net.finmath.marketdata.products.Swap.getForwardSwapRate(new TimeDiscretization(swapTenor), new TimeDiscretization(swapTenor), forwardCurve, discountCurve);
+	}
+
+	public static LIBORMarketModel.CalibrationItem[] createCalibrationItems(ForwardCurveInterface forwardCurve, DiscountCurveInterface discountCurve, String[] atmExpiries, String[] atmTenors, double[] atmNormalVolatilities, LocalDate referenceDate, BusinessdayCalendar cal, DayCountConventionInterface modelDC, double swapPeriodLength) throws CalculationException{
+
+		final ArrayList<CalibrationItem>	calibrationItems		= new ArrayList<CalibrationItem>();
+
+		for(int i=0; i<atmNormalVolatilities.length; i++ ) {
+
+			LocalDate exerciseDate = cal.createDateFromDateAndOffsetCode(referenceDate, atmExpiries[i]);
+			LocalDate tenorEndDate = cal.createDateFromDateAndOffsetCode(exerciseDate, atmTenors[i]);
+			double	exercise		= modelDC.getDaycountFraction(referenceDate, exerciseDate);
+			double	tenor			= modelDC.getDaycountFraction(exerciseDate, tenorEndDate);
+
+			// We consider an idealized tenor grid (alternative: adapt the model grid)
+			exercise	= Math.round(exercise/0.25)*0.25;
+			tenor		= Math.round(tenor/0.25)*0.25;
+
+			if(exercise < 1.0) continue;
+
+			int numberOfPeriods = (int)Math.round(tenor / swapPeriodLength);
+
+			double	moneyness			= 0.0;
+			double	targetVolatility	= atmNormalVolatilities[i];
+
+			String	targetVolatilityType = "VOLATILITYNORMAL";
+
+			double	weight = 1.0;
+
+			calibrationItems.add(createCalibrationItem(weight, exercise, swapPeriodLength, numberOfPeriods, moneyness, targetVolatility, targetVolatilityType, forwardCurve, discountCurve));
+		}
+		LIBORMarketModel.CalibrationItem[] calibrationItemsLMM = new LIBORMarketModel.CalibrationItem[calibrationItems.size()];
+		for(int i=0; i<calibrationItems.size(); i++) calibrationItemsLMM[i] = new LIBORMarketModel.CalibrationItem(calibrationItems.get(i).calibrationProduct,calibrationItems.get(i).calibrationTargetValue,calibrationItems.get(i).calibrationWeight);
+
+		return calibrationItemsLMM;
+	}
+
+	public static Map<String, Object> getModelCalibrationPropertiesMap(double accuracy, double parameterStep, int maxIterations, int numberOfThreads, BrownianMotionInterface brownianMotion){	
+		// Set model properties
+		Map<String, Object> properties = new HashMap<String, Object>();
+
+		// Choose the simulation measure
+		properties.put("measure", LIBORMarketModel.Measure.SPOT.name());
+
+		// Choose normal state space for the Euler scheme (the covariance model above carries a linear local volatility model, such that the resulting model is log-normal).
+		properties.put("stateSpace", LIBORMarketModel.StateSpace.NORMAL.name());
+
+		// Set calibration properties (should use our brownianMotion for calibration - needed to have to right correlation).		
+		OptimizerFactoryInterface optimizerFactory = new OptimizerFactoryLevenbergMarquardt(maxIterations, accuracy, numberOfThreads);
+
+		// Set calibration properties (should use our brownianMotion for calibration - needed to have to right correlation).
+		Map<String, Object> calibrationParameters = new HashMap<String, Object>();
+		calibrationParameters.put("accuracy", new Double(accuracy));
+		calibrationParameters.put("brownianMotion", brownianMotion);
+		calibrationParameters.put("optimizerFactory", optimizerFactory);
+		calibrationParameters.put("parameterStep", new Double(parameterStep));
+		properties.put("calibrationParameters", calibrationParameters);
+
+		return properties;
+	}
+	
+	
+	public static double[] getCalibratedParameters(LIBORModelInterface liborMarketModelCalibrated){
+	   return ((AbstractLIBORCovarianceModelParametric)((LIBORMarketModel) liborMarketModelCalibrated).getCovarianceModel()).getParameter();
+	}
+
+	public static double[] getTargetValuesUnderCalibratedModel(LIBORModelInterface liborMarketModelCalibrated, BrownianMotionInterface brownianMotion, CalibrationItem[] calibrationItems){
+		ProcessEulerScheme process = new ProcessEulerScheme(brownianMotion);
+		LIBORModelMonteCarloSimulationInterface simulationCalibrated = new LIBORModelMonteCarloSimulation(liborMarketModelCalibrated, process);
+
+		double[] valueModel = new double[calibrationItems.length];
+		for (int i = 0; i < calibrationItems.length; i++) {
+			AbstractLIBORMonteCarloProduct calibrationProduct = calibrationItems[i].calibrationProduct;
+			try {
+				valueModel[i] = calibrationProduct.getValue(simulationCalibrated);
+			}
+			catch(Exception e) {
+			}
+		}
+		return valueModel;
+	}
+	
+	public static double[] getCalibratedVolatilities(LIBORModelInterface liborMarketModelCalibrated){
+		double[] calibratedParameters = getCalibratedParameters(liborMarketModelCalibrated);
+		double[] calibratedVols = new double[calibratedParameters.length-2];
+		for(int i=0;i<calibratedVols.length;i++) calibratedVols[i]=calibratedParameters[i];
+		return calibratedVols;
+	}
+	
+	public static double getCalibratedBlendingParameter(LIBORModelInterface liborMarketModelCalibrated){
+		double[] calibratedParameters = getCalibratedParameters(liborMarketModelCalibrated);
+		return calibratedParameters[calibratedParameters.length-1];
 	}
 }

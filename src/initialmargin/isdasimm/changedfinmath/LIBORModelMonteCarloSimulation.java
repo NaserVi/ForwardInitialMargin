@@ -9,6 +9,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 import net.finmath.exception.CalculationException;
+import net.finmath.montecarlo.AbstractRandomVariableFactory;
 import net.finmath.montecarlo.BrownianMotionInterface;
 import net.finmath.montecarlo.process.AbstractProcess;
 import net.finmath.montecarlo.process.AbstractProcessInterface;
@@ -170,6 +171,11 @@ public class LIBORModelMonteCarloSimulation implements LIBORModelMonteCarloSimul
 	@Override
 	public RandomVariableInterface getForwardBondOIS(double T, double t) throws CalculationException{
 		return model.getForwardBondOIS(T, t);
+	}
+	
+	@Override
+	public AbstractRandomVariableFactory getRandomVariableFactory(){
+		return model.getRandomVariableFactory();
 	}
 
 	public LIBORModelInterface getModel() {

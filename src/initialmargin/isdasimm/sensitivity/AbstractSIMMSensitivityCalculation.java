@@ -25,12 +25,13 @@ public abstract class AbstractSIMMSensitivityCalculation {
     public boolean isUseTimeGridAdjustment; 
     public boolean isUseAnalyticSwapSensitivities;
     public boolean isConsiderOISSensitivities;
+    public static double secondsPseudoInverse = 0;
     
 	public enum SensitivityMode{
-    	LinearMelting,
-    	Interpolation,
-    	Exact, // AAD or Analytic (for Swaps)
-    	InterpolationOIS // Interpolate OIS sensitivities only 
+    	LinearMelting,    // Melting of sensitivties to zero until final maturity
+    	Interpolation,    // Interpolate OIS and Forward curve sensitivities between time points of exact AAD sensitivities
+    	Exact,            // AAD or Analytic (for Swaps)
+    	InterpolationOIS, // Interpolate OIS sensitivities only
     }
     
     protected SensitivityMode sensitivityMode;
@@ -40,7 +41,7 @@ public abstract class AbstractSIMMSensitivityCalculation {
 		Stochastic //Calculate dL/dS(t) for all forward IM times, i.e. (weakly) stochastic weight adjustment 
 	}
     
-    private WeightMode liborWeightMethod;
+    private WeightMode liborWeightMethod;  
     private HashMap<Double /*time*/, RandomVariableInterface[][]> riskWeightMap = new HashMap<>();
     
     
@@ -445,7 +446,7 @@ public abstract class AbstractSIMMSensitivityCalculation {
 
 	    	double[][][] inv = new double[matrix[0].length][matrix.length][numberOfPaths];
 			double[][] matrixOnPath = new double[matrix.length][matrix[0].length];
-			
+			long start = System.currentTimeMillis();
 			IntStream.range(0, numberOfPaths).parallel().forEach(pathIndex -> {
 				for(int i=0;i<matrixOnPath.length;i++){
 					for(int j=0;j<matrixOnPath[0].length;j++){
@@ -471,7 +472,9 @@ public abstract class AbstractSIMMSensitivityCalculation {
 					pseudoInverse[i][j] = new RandomVariable(0.0 /*should be evaluationTime*/,inv[i][j]);
 				}
 			}
-			
+			long end= System.currentTimeMillis();
+			secondsPseudoInverse = secondsPseudoInverse + ((end-start)/1000.0);
+			System.out.println("Total time of pseudo inverse: " + secondsPseudoInverse); 
 			return pseudoInverse;
 	    }
 	   
@@ -505,4 +508,5 @@ public abstract class AbstractSIMMSensitivityCalculation {
 			}
 			return AB;
 		}
+		
 }

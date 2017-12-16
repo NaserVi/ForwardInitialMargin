@@ -19,6 +19,7 @@ import net.finmath.marketdata.model.curves.DiscountCurveInterface;
 //import net.finmath.analytic.model.curves.DiscountCurveInterface;
 
 import net.finmath.marketdata.model.curves.ForwardCurveInterface;
+import net.finmath.montecarlo.AbstractRandomVariableFactory;
 import net.finmath.montecarlo.RandomVariable;
 import net.finmath.montecarlo.interestrate.modelplugins.TermStructureCovarianceModelInterface;
 import net.finmath.montecarlo.interestrate.modelplugins.TermStructureCovarianceModelParametric;
@@ -893,6 +894,12 @@ public class LIBORMarketModelWithTenorRefinement extends AbstractModel implement
 	 */
 	public TermStructureCovarianceModelInterface getCovarianceModel() {
 		return covarianceModel;
+	}
+
+	@Override
+	public AbstractRandomVariableFactory getRandomVariableFactory() {
+		// TODO Auto-generated method stub
+		return null;
 	}
 }
 

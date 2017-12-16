@@ -8,6 +8,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 import org.apache.commons.lang3.ArrayUtils;
 
@@ -58,7 +59,8 @@ public abstract class AbstractSIMMProduct implements SIMMProductInterface {
     private   CalculationSchemeInitialMarginISDA simmScheme;
     
     
-    final private String[]  IRMaturityBuckets = {"2w","1m","3m","6m","1y","2y","3y","5y","10y","15y","20y","30y"};
+    public static final String[]  IRMaturityBuckets = {"2w","1m","3m","6m","1y","2y","3y","5y","10y","15y","20y","30y"};
+    public static final RandomVariableInterface[] zeroBucketsIR = IntStream.range(0, IRMaturityBuckets.length).mapToObj(i->new RandomVariable(0.0)).toArray(RandomVariableInterface[]::new);
     
     // Define the sensitivity maps.
     /**
@@ -130,7 +132,7 @@ public abstract class AbstractSIMMProduct implements SIMMProductInterface {
  		if(evaluationTime >= getFinalMaturity()) return new RandomVariable(0.0);
  		
  		if(this.modelCache==null || !model.equals(this.modelCache) || (sensitivityCalculationScheme!=null && (sensitivityMode !=sensitivityCalculationScheme.getSensitivityMode() || liborWeightMode !=sensitivityCalculationScheme.getWeightMode()))) { // At inception (t=0) or if the model is reset            
- 	        setGradient(model); // Set the (new) gradient. The method setModel also clears the sensitivity maps and sets the model as modelCache.
+ 			setGradient(model); // Set the (new) gradient. The method setModel also clears the sensitivity maps and sets the model as modelCache.
  	        this.exerciseIndicator = null;
  	        this.exactDeltaCache.clear();
  	        this.sensitivityCalculationScheme = new SIMMSensitivityCalculation(sensitivityMode, liborWeightMode, interpolationStep, model, isUseTimeGridAdjustment, isUseAnalyticSwapSensis, isConsiderOISSensitivities);
@@ -373,10 +375,7 @@ public abstract class AbstractSIMMProduct implements SIMMProductInterface {
 	
 	       // Return zero if evaluationTime is later than the last time where an adjustment is available (i.e. the last time where a cash flow occurred)
 	       if(!adjustmentMap.keySet().stream().filter(time -> time > evaluationTime).findAny().isPresent()){
-		  
-		      RandomVariableInterface zero = new RandomVariable(0.0);
-		      return AbstractSIMMSensitivityCalculation.mapSensitivitiesOnBuckets(new RandomVariableInterface[]{zero}, riskClass, new int[]{17},model);
-	   
+		      return zeroBucketsIR;
 	       }
 	
 	       // Calculate adjustment at evaluationTime
