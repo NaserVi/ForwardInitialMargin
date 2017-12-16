@@ -156,7 +156,7 @@ public class SIMMSwaption extends AbstractSIMMProduct{
 	
 	@Override
 	public double getMeltingResetTime(){
-		return swaption.getExerciseDate();
+		return Double.MAX_VALUE;//swaption.getExerciseDate();
 	}
 	
 	@Override
