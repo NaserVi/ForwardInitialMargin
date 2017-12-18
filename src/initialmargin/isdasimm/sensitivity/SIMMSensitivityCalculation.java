@@ -72,8 +72,7 @@ public class SIMMSensitivityCalculation extends AbstractSIMMSensitivityCalculati
                  case Exact:  
 
                      maturityBucketSensis = doCalculateDeltaSensitivitiesIR(product, curveIndexName, evaluationTime, model);
-                     
-                     //for(int i=0; i<maturityBucketSensis.length;i++) System.out.println("mbsensis " + maturityBucketSensis[i].getAverage());
+                                      
                      break;
                      
                  case Interpolation:
@@ -95,16 +94,11 @@ public class SIMMSensitivityCalculation extends AbstractSIMMSensitivityCalculati
         		     double initialMeltingTime = evaluationTime < product.getMeltingResetTime() ? 0 : product.getMeltingResetTime();
                 	 
                 	 maturityBucketSensis = getMeltedSensitivities(product, null /*given sensitivities*/, initialMeltingTime, evaluationTime, curveIndexName, riskClass);
-                	 
-                	 //for(int i=0;i<maturityBucketSensis.length;i++) System.out.println("before " + "\t" + evaluationTime + "\t" + maturityBucketSensis[i].getAverage());
-                	 
+                	               	 
                 	 if(product instanceof SIMMBermudanSwaption) {
                 		                		 
                 		 maturityBucketSensis = ((SIMMBermudanSwaption)product).changeMeltedSensisOnExercisedPaths(evaluationTime, curveIndexName, maturityBucketSensis);
                 	 }
-                	 
-                	 //for(int i=0;i<maturityBucketSensis.length;i++) System.out.println("after " + "\t" + evaluationTime + "\t" + maturityBucketSensis[i].getAverage());
-                	 
                 	 
                 	 break;               	
 
@@ -219,15 +213,12 @@ public class SIMMSensitivityCalculation extends AbstractSIMMSensitivityCalculati
          
          if(deltaT==0) return finalSensitivities;
          
-         //ArrayList<RandomVariableInterface> interpolatedSensis = new ArrayList<>();
          RandomVariableInterface[] interpolatedSensis = new RandomVariable[initialSensitivities.length];   
          for(int bucketIndex=0; bucketIndex<initialSensitivities.length; bucketIndex++){
         	 RandomVariableInterface slope = finalSensitivities[bucketIndex].sub(initialSensitivities[bucketIndex]).div(deltaT);
         	 interpolatedSensis[bucketIndex] = initialSensitivities[bucketIndex].add(slope.mult(deltaTEval));
-        	 //interpolatedSensis.add(initialSensitivities[bucketIndex].add(slope.mult(deltaTEval)));
          }
-		 //RandomVariableInterface[] result = interpolatedSensis.toArray(new RandomVariableInterface[interpolatedSensis.size()]);
-         
+		
 		 return interpolatedSensis;
 		 
 	  }
