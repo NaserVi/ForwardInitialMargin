@@ -141,6 +141,23 @@ public abstract class AbstractSIMMProduct implements SIMMProductInterface {
  		
  		return simmScheme.getValue(evaluationTime); 
  	}
+ 	
+ 	// for risk weight calibration only
+ 	public RandomVariableInterface getInitialMargin(double evaluationTime, 
+ 			LIBORModelMonteCarloSimulationInterface model, 		                                        
+ 			CalculationSchemeInitialMarginISDA simmScheme) throws CalculationException{
+
+ 		if(evaluationTime >= getFinalMaturity()) return new RandomVariable(0.0);
+
+ 		if(this.modelCache==null || !model.equals(this.modelCache) || sensitivityCalculationScheme!=null) { // At inception (t=0) or if the model is reset            
+ 			setGradient(model); // Set the (new) gradient. The method setModel also clears the sensitivity maps and sets the model as modelCache.
+ 			this.exerciseIndicator = null;
+ 			this.exactDeltaCache.clear();
+ 			this.sensitivityCalculationScheme = new SIMMSensitivityCalculation(SensitivityMode.LinearMelting, WeightMode.Stochastic, 1.0, model, true /*isUseTimeGridAdjustment*/, true /*isUseAnalyticSwapSensis*/, true /*isConsiderOISSensitivities*/);
+ 		}
+
+ 		return simmScheme.getValue(this, evaluationTime); 
+ 	}
      
  	
     @Override
@@ -174,7 +191,7 @@ public abstract class AbstractSIMMProduct implements SIMMProductInterface {
                                              
                             if(isPrintSensis && curveIndexName=="Libor6m") {                            	
                             	System.out.println(evaluationTime + "\t" + maturityBucketSensis[3].getAverage() + "\t" + maturityBucketSensis[4].getAverage() + "\t"+ maturityBucketSensis[5].getAverage() + "\t"+ maturityBucketSensis[6].getAverage() + "\t"+ maturityBucketSensis[7].getAverage() + "\t"+ maturityBucketSensis[8].getAverage() + "\t"+maturityBucketSensis[9].getAverage() + "\t"+maturityBucketSensis[10].getAverage() + "\t"+maturityBucketSensis[11].getAverage());
-                            }
+                            }                          
                             // Create a new element of the curveIndex List for given risk class		         
                             HashMap<String,HashMap<String,RandomVariableInterface>> curveIndexNameexactDeltaCache = new HashMap<String,HashMap<String,RandomVariableInterface>>();
                             HashMap<String,RandomVariableInterface> bucketSensitivities = new HashMap<String,RandomVariableInterface>();

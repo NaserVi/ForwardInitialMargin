@@ -1,22 +1,29 @@
 package initialmargin.isdasimm.aggregationscheme;
 
-import java.util.AbstractMap;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Future;
+import java.util.concurrent.FutureTask;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import org.apache.commons.lang3.ArrayUtils;
 
-
-import initialmargin.isdasimm.products.AbstractSIMMProduct;
-import initialmargin.isdasimm.products.SIMMPortfolio;
 import net.finmath.exception.CalculationException;
+import initialmargin.isdasimm.changedfinmath.LIBORModelMonteCarloSimulationInterface;
+import initialmargin.isdasimm.products.*;
 import net.finmath.montecarlo.RandomVariable;
+import net.finmath.optimizer.OptimizerFactoryInterface;
+import net.finmath.optimizer.OptimizerFactoryLevenbergMarquardt;
+import net.finmath.optimizer.OptimizerInterface;
+import net.finmath.optimizer.OptimizerInterface.ObjectiveFunction;
+import net.finmath.optimizer.SolverException;
 import net.finmath.stochastic.RandomVariableInterface;
 
 /**
@@ -82,8 +89,12 @@ public class CalculationSchemeInitialMarginISDA {
 	     	this.MapRiskClassRiskweightMap.put("delta", secondMap);
 	     	
 	     }
-	    private final double[] riskWeightsRegularCurrency = new double[]{0.0077, 0.0077, 0.0077, 0.0064, 0.0058, 0.0049, 0.0047, 0.0047,	0.0045,	0.0045,	0.0048,	0.0056};
-	 	private final double[] riskWeightsLowVolCurrency  = new double[]{0.0010, 0.0010, 0.0010, 0.0010, 0.0013, 0.0016, 0.0018, 0.0020, 0.0025, 0.0022, 0.0022, 0.0023};
+	     
+	    private double[] riskWeightsRegularCurrency = new double[]{0.0077, 0.0077, 0.0077, 0.0064, 0.0058, 0.0049, 0.0047, 0.0047,	0.0045,	0.0045,	0.0048,	0.0056};
+	     public void setRiskWeightsRegular(double[] weights){
+	    	 riskWeightsRegularCurrency = weights;
+	     }
+	    private final double[] riskWeightsLowVolCurrency  = new double[]{0.0010, 0.0010, 0.0010, 0.0010, 0.0013, 0.0016, 0.0018, 0.0020, 0.0025, 0.0022, 0.0022, 0.0023};
 	 	private final double[] riskWeightsHighVolCurrency = new double[]{0.0089, 0.0089, 0.0089, 0.0094, 0.0104, 0.0099, 0.0096, 0.0099, 0.0087, 0.0097, 0.0097, 0.0098};
 
 	     
@@ -196,8 +207,6 @@ public class CalculationSchemeInitialMarginISDA {
         this.IRCurveIndexNames = product.getCurveIndexNames();
     }
 
-
-
     public RandomVariableInterface getValue(double evaluationTime) throws CalculationException{
     	RandomVariableInterface SIMMValue = null;
         for ( String productClass : productClassKeys) { // RatesFX, Credit etc.
@@ -205,6 +214,32 @@ public class CalculationSchemeInitialMarginISDA {
             SIMMValue = SIMMValue == null ? SIMMProductValue : SIMMValue.add(SIMMProductValue);
         }
         return SIMMValue;
+    }
+    
+    
+    // SIMM constructor 
+    public CalculationSchemeInitialMarginISDA(String calculationCCY) throws CalculationException{
+        this.resultMap = new HashMap<>();
+        this.calculationCCY = calculationCCY;
+        this.parameterCollection = new ParameterCollection();
+    }
+    
+    
+    public RandomVariableInterface getValue(AbstractSIMMProduct product, double evaluationTime) throws CalculationException{
+    	RandomVariableInterface SIMMValue = null;
+    	this.products = new AbstractSIMMProduct[]{product};
+        this.productClassKeys = new String[]{product.getProductClass()};
+        this.riskClassKeys = product.getRiskClasses();
+        this.IRCurveIndexNames = product.getCurveIndexNames();
+        for ( String productClass : productClassKeys) { // RatesFX, Credit etc.
+            RandomVariableInterface SIMMProductValue = this.getSIMMProduct(productClass,evaluationTime);
+            SIMMValue = SIMMValue == null ? SIMMProductValue : SIMMValue.add(SIMMProductValue);
+        }
+        return SIMMValue;
+    }
+    
+    public void setRiskWeightsRegular(double[] weights){
+    	this.parameterCollection.setRiskWeightsRegular(weights);
     }
     
     
@@ -451,6 +486,98 @@ public class CalculationSchemeInitialMarginISDA {
            }
            return relevantBuckets.toArray(new String[relevantBuckets.size()]);
     }
+    
+    public double[] getRiskWeightsCalibrated(final LIBORModelMonteCarloSimulationInterface model, final SIMMSimpleSwap[] calibrationProducts, final double[] calibrationTargetValues, Map<String,Object> calibrationParameters) throws CalculationException {
+
+		if(calibrationParameters == null) calibrationParameters = new HashMap<String,Object>();
+		Integer maxIterationsParameter	= (Integer)calibrationParameters.get("maxIterations");
+		Double	parameterStepParameter	= (Double)calibrationParameters.get("parameterStep");
+		Double	accuracyParameter		= (Double)calibrationParameters.get("accuracy");
+		
+		double[] initialParameters = this.parameterCollection.riskWeightsRegularCurrency;
+		double[] lowerBound = new double[initialParameters.length];
+		double[] upperBound = new double[initialParameters.length];
+		double[] parameterStep = new double[initialParameters.length];
+		double[] zero = new double[calibrationTargetValues.length];
+		Arrays.fill(lowerBound, Double.NEGATIVE_INFINITY);
+		Arrays.fill(upperBound, Double.POSITIVE_INFINITY);
+		Arrays.fill(parameterStep, parameterStepParameter != null ? parameterStepParameter.doubleValue() : 1E-4);
+		Arrays.fill(zero, 0);
+
+		int numberOfThreads = 2;
+		OptimizerFactoryInterface optimizerFactoryParameter = (OptimizerFactoryInterface)calibrationParameters.get("optimizerFactory");
+
+		int maxIterations	= maxIterationsParameter != null ? maxIterationsParameter.intValue() : 100;
+		double accuracy		= accuracyParameter != null ? accuracyParameter.doubleValue() : 1E-5;
+		OptimizerFactoryInterface optimizerFactory = optimizerFactoryParameter != null ? optimizerFactoryParameter : new OptimizerFactoryLevenbergMarquardt(maxIterations, accuracy, numberOfThreads);
+
+		//int numberOfThreadsForProductValuation = 2 * Math.max(2, Runtime.getRuntime().availableProcessors());
+		final ExecutorService executor = null;//Executors.newFixedThreadPool(numberOfThreadsForProductValuation);
+
+		ObjectiveFunction calibrationError = new ObjectiveFunction() {			
+			// Calculate ISDA SIMM IM 
+			@Override
+			public void setValues(double[] parameters, double[] values) throws SolverException {
+
+				CalculationSchemeInitialMarginISDA.this.setRiskWeightsRegular(parameters);
+
+				ArrayList<Future<Double>> valueFutures = new ArrayList<Future<Double>>(calibrationProducts.length);
+				for(int calibrationProductIndex=0; calibrationProductIndex<calibrationProducts.length; calibrationProductIndex++) {
+					final int workerCalibrationProductIndex = calibrationProductIndex;
+					Callable<Double> worker = new  Callable<Double>() {
+						public Double call() throws SolverException {
+							try {
+								return calibrationProducts[workerCalibrationProductIndex].getInitialMargin(0.0 /*evaluationTime*/, model, CalculationSchemeInitialMarginISDA.this).getAverage();
+							} catch (CalculationException e) {
+								// We do not signal exceptions to keep the solver working and automatically exclude non-working calibration products.
+								return calibrationTargetValues[workerCalibrationProductIndex];
+							} catch (Exception e) {
+								// We do not signal exceptions to keep the solver working and automatically exclude non-working calibration products.
+								return calibrationTargetValues[workerCalibrationProductIndex];
+							}
+						}
+					};
+					if(executor != null) {
+						Future<Double> valueFuture = executor.submit(worker);
+						valueFutures.add(calibrationProductIndex, valueFuture);
+					}
+					else {
+						FutureTask<Double> valueFutureTask = new FutureTask<Double>(worker);
+						valueFutureTask.run();
+						valueFutures.add(calibrationProductIndex, valueFutureTask);
+					}
+				}
+				for(int calibrationProductIndex=0; calibrationProductIndex<calibrationProducts.length; calibrationProductIndex++) {
+					try {
+						double value = valueFutures.get(calibrationProductIndex).get();
+						values[calibrationProductIndex] = value;
+					}
+					catch (InterruptedException e) {
+						throw new SolverException(e);
+					} catch (ExecutionException e) {
+						throw new SolverException(e);
+					}
+				}
+			}
+		};
+
+		OptimizerInterface optimizer = optimizerFactory.getOptimizer(calibrationError, initialParameters, lowerBound, upperBound, parameterStep, calibrationTargetValues);
+		try {
+			optimizer.run();
+		}
+		catch(SolverException e) {
+			throw new CalculationException(e);
+		}
+		finally {
+			if(executor != null) {
+				executor.shutdown();
+			}
+		}
+
+		// Get covariance model corresponding to the best parameter set.
+		return optimizer.getBestFitParameters();
+   	
+	}
     
     
 //    public Map<String,String[]>     getMapRiskClassRiskFactors(String riskTypeString, String bucketKey,double atTime){
