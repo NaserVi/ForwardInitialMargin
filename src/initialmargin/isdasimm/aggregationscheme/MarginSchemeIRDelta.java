@@ -8,10 +8,6 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 
-/**
- * Created by xn04210 on 08/08/2017.
- */
-
 /*
 IR:
  Currency --> Bucket

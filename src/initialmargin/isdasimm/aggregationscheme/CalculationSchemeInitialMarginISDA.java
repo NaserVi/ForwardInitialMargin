@@ -17,9 +17,7 @@ import org.apache.commons.lang3.ArrayUtils;
 
 import net.finmath.exception.CalculationException;
 import initialmargin.isdasimm.changedfinmath.LIBORModelMonteCarloSimulationInterface;
-import initialmargin.isdasimm.products.AbstractSIMMProduct;
-import initialmargin.isdasimm.products.SIMMPortfolio;
-import initialmargin.isdasimm.products.SIMMSimpleSwap;
+import initialmargin.isdasimm.products.*;
 import net.finmath.montecarlo.RandomVariable;
 import net.finmath.optimizer.OptimizerFactoryInterface;
 import net.finmath.optimizer.OptimizerFactoryLevenbergMarquardt;
