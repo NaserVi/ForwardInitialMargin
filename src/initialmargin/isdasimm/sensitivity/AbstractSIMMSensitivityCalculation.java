@@ -474,7 +474,7 @@ public abstract class AbstractSIMMSensitivityCalculation {
 			}
 			long end= System.currentTimeMillis();
 			secondsPseudoInverse = secondsPseudoInverse + ((end-start)/1000.0);
-			System.out.println("Total time of pseudo inverse: " + secondsPseudoInverse); 
+		//	System.out.println("Total time of pseudo inverse: " + secondsPseudoInverse); 
 			return pseudoInverse;
 	    }
 	   
