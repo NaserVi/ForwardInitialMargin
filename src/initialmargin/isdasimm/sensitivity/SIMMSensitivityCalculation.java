@@ -147,19 +147,20 @@ public class SIMMSensitivityCalculation extends AbstractSIMMSensitivityCalculati
 		  }
 		  
 		  // Get sensitivities to melt if not provided as input to the function
+		  // S_k(t^B_i;t_{IMT};t_{IMT})
 		  if(sensitivities == null) {
 			  sensitivities = product.getExactDeltaFromCache(meltingZeroTime, riskClass, curveIndexName);		 
-		      //for(int i=0; i<sensitivities.length; i++) System.out.println("cacheSensis " + sensitivities[i].getAverage());
 		  }
 		  
 		  double[] initialMeltingTime = new double[]{meltingZeroTime};
 		  
+		  // t^B_i
 	      int[] riskFactorsSIMM = riskClass=="InterestRate" ? new int[] {14, 30, 90, 180, 365, 730, 1095, 1825, 3650, 5475, 7300, 10950} : /*Credit*/ new int[] {365, 730, 1095, 1825, 3650};	
 			   
 	      // If sensitivities are given on LiborPeriodDiscretization, map them on SIMM Buckets 
-		  if(sensitivities.length!=riskFactorsSIMM.length) sensitivities = mapSensitivitiesOnBuckets(sensitivities, riskClass, null, model); 
+		  //if(sensitivities.length!=riskFactorsSIMM.length) sensitivities = mapSensitivitiesOnBuckets(sensitivities, riskClass, null, model); 
 			   
-		  // Get new riskFactor times
+		  // Get new riskFactor times: t^B_i - (t-t_{IMT})
 		  int[] riskFactorDays = Arrays.stream(riskFactorsSIMM).filter(n -> n > (int)Math.round(365*(evaluationTime-initialMeltingTime[0]))).map(n -> n-(int)Math.round(365*(evaluationTime-initialMeltingTime[0]))).toArray();
 		       
 		  // Find first bucket later than evaluationTime
