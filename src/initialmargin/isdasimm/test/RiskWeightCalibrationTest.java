@@ -13,7 +13,7 @@ import net.finmath.montecarlo.AbstractRandomVariableFactory;
 
 public class RiskWeightCalibrationTest {
 
-	public final static int numberOfPaths = 10;
+	public final static int numberOfPaths = 100;
 	public static void main(String[] args) throws CalculationException{
 
 		/*
@@ -47,10 +47,10 @@ public class RiskWeightCalibrationTest {
 		 * Create calibration products
 		 */
 		SIMMSimpleSwap[] calibrationProducts = createCalibrationProducts(1000000 /*notional*/, new int[]{10, 20, 30} /*numberOfPeriods*/, 0.5 /*periodLength*/, forwardCurve, discountCurve);
-        double[] targetIMValues = new double[]{20000,	40000,	50000};
+        double[] targetIMValues = new double[]{25000,	38000,	55000};
 
         CalculationSchemeInitialMarginISDA isdaScheme = new CalculationSchemeInitialMarginISDA("EUR");
-        //System.out.println(calibrationProducts[0].getInitialMargin(0.0, model, "EUR").getAverage() + "\t" + calibrationProducts[1].getInitialMargin(0.0, model, "EUR").getAverage() + "\t" + calibrationProducts[2].getInitialMargin(0.0, model, "EUR").getAverage());
+        System.out.println(calibrationProducts[0].getInitialMargin(0.0, model, "EUR").getAverage() + "\t" + calibrationProducts[1].getInitialMargin(0.0, model, "EUR").getAverage() + "\t" + calibrationProducts[2].getInitialMargin(0.0, model, "EUR").getAverage());
         double[] calibratedRiskWeights = isdaScheme.getRiskWeightsCalibrated(model, calibrationProducts, targetIMValues, null /*parameters*/);
 	
         for(int i = 0; i<calibratedRiskWeights.length; i++) System.out.println(calibratedRiskWeights[i]);

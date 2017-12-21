@@ -93,6 +93,9 @@ public class CalculationSchemeInitialMarginISDA {
 	    private double[] riskWeightsRegularCurrency = new double[]{0.0077, 0.0077, 0.0077, 0.0064, 0.0058, 0.0049, 0.0047, 0.0047,	0.0045,	0.0045,	0.0048,	0.0056};
 	     public void setRiskWeightsRegular(double[] weights){
 	    	 riskWeightsRegularCurrency = weights;
+	    	 Double[][] value = new Double[1][riskWeightsRegularCurrency.length];
+	    	 value[0] = ArrayUtils.toObject(riskWeightsRegularCurrency);
+	    	 MapRiskClassRiskweightMap.get("delta").get("InterestRate").put("Regular_Volatility_Currencies", value);
 	     }
 	    private final double[] riskWeightsLowVolCurrency  = new double[]{0.0010, 0.0010, 0.0010, 0.0010, 0.0013, 0.0016, 0.0018, 0.0020, 0.0025, 0.0022, 0.0022, 0.0023};
 	 	private final double[] riskWeightsHighVolCurrency = new double[]{0.0089, 0.0089, 0.0089, 0.0094, 0.0104, 0.0099, 0.0096, 0.0099, 0.0087, 0.0097, 0.0097, 0.0098};
@@ -494,20 +497,20 @@ public class CalculationSchemeInitialMarginISDA {
 		Double	parameterStepParameter	= (Double)calibrationParameters.get("parameterStep");
 		Double	accuracyParameter		= (Double)calibrationParameters.get("accuracy");
 		
-		double[] initialParameters = this.parameterCollection.riskWeightsRegularCurrency;
+		double[] initialParameters = Arrays.stream(this.parameterCollection.riskWeightsRegularCurrency).map(n->Math.log(n)).toArray();
 		double[] lowerBound = new double[initialParameters.length];
 		double[] upperBound = new double[initialParameters.length];
 		double[] parameterStep = new double[initialParameters.length];
 		double[] zero = new double[calibrationTargetValues.length];
-		Arrays.fill(lowerBound, Double.NEGATIVE_INFINITY);
-		Arrays.fill(upperBound, Double.POSITIVE_INFINITY);
-		Arrays.fill(parameterStep, parameterStepParameter != null ? parameterStepParameter.doubleValue() : 1E-4);
+		Arrays.fill(lowerBound, 0.0);
+		Arrays.fill(upperBound, 1.0);
+		Arrays.fill(parameterStep, parameterStepParameter != null ? parameterStepParameter.doubleValue() : 1E-5);
 		Arrays.fill(zero, 0);
 
 		int numberOfThreads = 2;
 		OptimizerFactoryInterface optimizerFactoryParameter = (OptimizerFactoryInterface)calibrationParameters.get("optimizerFactory");
 
-		int maxIterations	= maxIterationsParameter != null ? maxIterationsParameter.intValue() : 100;
+		int maxIterations	= maxIterationsParameter != null ? maxIterationsParameter.intValue() : 2000;
 		double accuracy		= accuracyParameter != null ? accuracyParameter.doubleValue() : 1E-5;
 		OptimizerFactoryInterface optimizerFactory = optimizerFactoryParameter != null ? optimizerFactoryParameter : new OptimizerFactoryLevenbergMarquardt(maxIterations, accuracy, numberOfThreads);
 
@@ -519,6 +522,7 @@ public class CalculationSchemeInitialMarginISDA {
 			@Override
 			public void setValues(double[] parameters, double[] values) throws SolverException {
 
+				parameters = Arrays.stream(parameters).map(n->Math.exp(n)).toArray();
 				CalculationSchemeInitialMarginISDA.this.setRiskWeightsRegular(parameters);
 
 				ArrayList<Future<Double>> valueFutures = new ArrayList<Future<Double>>(calibrationProducts.length);
@@ -575,7 +579,7 @@ public class CalculationSchemeInitialMarginISDA {
 		}
 
 		// Get covariance model corresponding to the best parameter set.
-		return optimizer.getBestFitParameters();
+		return Arrays.stream(optimizer.getBestFitParameters()).map(n->Math.exp(n)).toArray();
    	
 	}
     
