@@ -578,8 +578,10 @@ public class CalculationSchemeInitialMarginISDA {
 			}
 		}
 
-		// Get covariance model corresponding to the best parameter set.
-		return Arrays.stream(optimizer.getBestFitParameters()).map(n->Math.exp(n)).toArray();
+		// Set optimized parameters
+		double[] bestFitParameters = Arrays.stream(optimizer.getBestFitParameters()).map(n->Math.exp(n)).toArray();
+		CalculationSchemeInitialMarginISDA.this.setRiskWeightsRegular(bestFitParameters);
+		return bestFitParameters;
    	
 	}
     

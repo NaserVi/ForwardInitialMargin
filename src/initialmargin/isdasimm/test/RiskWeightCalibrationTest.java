@@ -14,6 +14,8 @@ import net.finmath.montecarlo.AbstractRandomVariableFactory;
 public class RiskWeightCalibrationTest {
 
 	public final static int numberOfPaths = 100;
+	public static final String[]  IRMaturityBuckets = {"2w","1m","3m","6m","1y","2y","3y","5y","10y","15y","20y","30y"};
+
 	public static void main(String[] args) throws CalculationException{
 
 		/*
@@ -46,14 +48,21 @@ public class RiskWeightCalibrationTest {
 		/*
 		 * Create calibration products
 		 */
-		SIMMSimpleSwap[] calibrationProducts = createCalibrationProducts(1000000 /*notional*/, new int[]{10, 20, 30} /*numberOfPeriods*/, 0.5 /*periodLength*/, forwardCurve, discountCurve);
+		int[] numberOfPeriods = new int[]{10, 20, 30};
+		SIMMSimpleSwap[] calibrationProducts = createCalibrationProducts(1000000 /*notional*/, numberOfPeriods, 0.5 /*periodLength*/, forwardCurve, discountCurve);
         double[] targetIMValues = new double[]{25000,	38000,	55000};
 
         CalculationSchemeInitialMarginISDA isdaScheme = new CalculationSchemeInitialMarginISDA("EUR");
-        System.out.println(calibrationProducts[0].getInitialMargin(0.0, model, "EUR").getAverage() + "\t" + calibrationProducts[1].getInitialMargin(0.0, model, "EUR").getAverage() + "\t" + calibrationProducts[2].getInitialMargin(0.0, model, "EUR").getAverage());
+        //double[] swapIM = new double[]{calibrationProducts[0].getInitialMargin(0.0, model, isdaScheme).getAverage(), calibrationProducts[1].getInitialMargin(0.0, model, isdaScheme).getAverage(), calibrationProducts[2].getInitialMargin(0.0, model, isdaScheme).getAverage()};
         double[] calibratedRiskWeights = isdaScheme.getRiskWeightsCalibrated(model, calibrationProducts, targetIMValues, null /*parameters*/);
 	
-        for(int i = 0; i<calibratedRiskWeights.length; i++) System.out.println(calibratedRiskWeights[i]);
+        System.out.println("Maturity Bucket" + "\t" + "Risk Weight Calibrated");
+        for(int i = 0; i<calibratedRiskWeights.length; i++) System.out.println(IRMaturityBuckets[i] + "\t" + calibratedRiskWeights[i]);
+        
+        System.out.println("          " + "\t" + "Swap " + numberOfPeriods[0]*0.5 + "Y" + "\t" + "Swap " + numberOfPeriods[1]*0.5 + "Y" + "Swap " + numberOfPeriods[2]*0.5 + "Y");
+        System.out.println("Target    " + "\t" + targetIMValues[0] + "\t" + targetIMValues[1] + "\t" + targetIMValues[2]);
+        System.out.println("Calibrated" + "\t" + calibrationProducts[0].getInitialMargin(0.0, model, isdaScheme).getAverage() + "\t" + calibrationProducts[1].getInitialMargin(0.0, model, isdaScheme).getAverage() + "\t" + calibrationProducts[2].getInitialMargin(0.0, model, isdaScheme).getAverage());
+
 
 		
 	}
