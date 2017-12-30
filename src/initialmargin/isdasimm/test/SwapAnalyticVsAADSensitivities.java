@@ -51,6 +51,7 @@ public class SwapAnalyticVsAADSensitivities {
 	final static DecimalFormat formatterSensi 	= new DecimalFormat("0.000000000");
 
 	public  Map<Long,RandomVariableInterface> gradient;
+	private static double notional = 100;
 
 	@Test
 	public void testAADVsAnalyticSensis() throws CalculationException{ 
@@ -66,7 +67,7 @@ public class SwapAnalyticVsAADSensitivities {
 				new double[] {0.02, 0.02, 0.02, 0.02, 0.02},
 				0.5/* tenor / period length */);
 
-		LIBORModelMonteCarloSimulationInterface model = createLIBORMarketModel(randomVariableFactory,5000/*numberOfPaths*/, 1 /*numberOfFactors*/, 
+		LIBORModelMonteCarloSimulationInterface model = createLIBORMarketModel(randomVariableFactory,10000/*numberOfPaths*/, 1 /*numberOfFactors*/, 
 				discountCurve,
 				forwardCurve,0.0 /* Correlation */);
 
@@ -79,7 +80,6 @@ public class SwapAnalyticVsAADSensitivities {
 		double     constantSwapRate = 0.02;
 		int        numberOfPeriods  = 8;
 		double     periodLength     = 0.5;
-		//double     notional         = 100;
 
 		double[]   fixingDates     = new double[numberOfPeriods];
 		double[]   paymentDates    = new double[numberOfPeriods];
@@ -91,17 +91,17 @@ public class SwapAnalyticVsAADSensitivities {
 		Arrays.fill(swapRates, constantSwapRate); 
 
 		// Create Products
-		AbstractLIBORMonteCarloProduct simpleSwap = new SimpleSwap(fixingDates,paymentDates,swapRates, 1.0); //Notional 1
+		AbstractLIBORMonteCarloProduct simpleSwap = new SimpleSwap(fixingDates,paymentDates,swapRates, notional); 
 
 
 		// ------------------------------------------------------------------------------------------------------------
-		// Compare Sensis
+		// Compare Forward Sensitivities w.r.t. Libor Rates
 		// ------------------------------------------------------------------------------------------------------------
 
 		// Calculate forward sensitivities
 		double timeStep = 0.1;
-		double relError = 0;
 		int    counter=0;
+		double rmse = 0.0;
 
 		for(int timeIndex=0;timeIndex<(int)(paymentDates[paymentDates.length-1]/timeStep);timeIndex++){
 			double time = timeStep*timeIndex;
@@ -114,19 +114,19 @@ public class SwapAnalyticVsAADSensitivities {
 						formatterSensi.format(sensisANA[liborIndex].getAverage()));
 
 				if(sensisANA[liborIndex].getAverage()!=0){
-					//l2error += Math.sqrt(sensisAAD[liborIndex].sub(sensisANA[liborIndex]).squared().getAverage()*1000);
-					relError +=Math.abs(sensisAAD[liborIndex].getAverage()-sensisANA[liborIndex].getAverage())/Math.abs(sensisANA[liborIndex].getAverage());
+					
+					rmse += sensisAAD[liborIndex].sub(sensisANA[liborIndex]).squared().average().sqrt().getAverage();
 					counter++;
 				}
 			} 
 
 		}
-		System.out.println("Rel. Error " + relError/counter);
-		Assert.assertTrue(relError/counter<0.01);
+		System.out.println("Average Notional-Relative RMSE " + (rmse/notional)/counter);
+		Assert.assertTrue((rmse/notional)/counter<0.01);
 	}
 
 
-	/** Calculate dV/dL
+	/** Calculate dV/dL. Note: These sensitivities are an approximation since the dependence of P_OIS on the Libor Rates in the model is neglected.
 	 * 
 	 * @param evaluationTime
 	 * @param periodLength
@@ -140,7 +140,6 @@ public class SwapAnalyticVsAADSensitivities {
 			double[] fixingDates,
 			LIBORModelMonteCarloSimulationInterface model) throws CalculationException{
 
-		MonteCarloConditionalExpectationRegression cOperator = getConditionalExpectationOperator(evaluationTime,model);
 		// Calculate forward sensitivities
 		int periodIndex = new TimeDiscretization(fixingDates).getTimeIndexNearestLessOrEqual(evaluationTime); 
 		periodIndex = periodIndex < 0 ? 0 : periodIndex;
@@ -149,14 +148,13 @@ public class SwapAnalyticVsAADSensitivities {
 		int numberOfSensis = evaluationTime == getNextLiborTime(evaluationTime,model) ? numberOfRemainingLibors : numberOfRemainingLibors+1;
 		RandomVariableInterface[] sensis = new RandomVariableInterface[numberOfSensis]; Arrays.fill(sensis, new RandomVariable(0.0));
 		int currentLiborIndex = model.getLiborPeriodDiscretization().getTimeIndexNearestLessOrEqual(evaluationTime);
-		RandomVariableInterface numeraireAtEval = model.getNumeraire(evaluationTime);
 
 		for(int liborIndex=currentLiborIndex;liborIndex<numberOfSensis+currentLiborIndex;liborIndex++){
 			int i = liborIndex < firstLiborIndex ? 0 : liborIndex-firstLiborIndex+1;
 			if(!(i>fixingDates.length-periodIndex || i==0) ){ //fixingDates[i-1]+periodLength<evaluationTime		
+				
 				// Actual Sensitivity Calculation: dV/dL = P(T,t)*periodLength
-				RandomVariableInterface numeraireAtPayment = model.getNumeraire(fixingDates[periodIndex+i-1]+periodLength);
-				sensis[liborIndex-currentLiborIndex]=numeraireAtEval.div(numeraireAtPayment).mult(periodLength).getConditionalExpectation(cOperator);			
+				sensis[liborIndex-currentLiborIndex]=model.getForwardBondOIS(fixingDates[periodIndex+i-1]+periodLength, evaluationTime).mult(periodLength).mult(notional);			
 
 			}
 		}
