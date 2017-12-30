@@ -22,6 +22,7 @@ import net.finmath.marketdata.products.SwapAnnuity;
 import net.finmath.montecarlo.AbstractRandomVariableFactory;
 import net.finmath.montecarlo.RandomVariable;
 import net.finmath.montecarlo.RandomVariableFactory;
+import net.finmath.montecarlo.automaticdifferentiation.backward.RandomVariableDifferentiableAAD;
 import initialmargin.isdasimm.changedfinmath.modelplugins.AbstractLIBORCovarianceModel;
 import initialmargin.isdasimm.changedfinmath.modelplugins.AbstractLIBORCovarianceModelParametric;
 import initialmargin.isdasimm.changedfinmath.products.AbstractLIBORMonteCarloProduct;
@@ -637,7 +638,7 @@ public class LIBORMarketModel extends AbstractModel implements LIBORMarketModelI
 			
 		}
 		
-		numeraires.put(timeIndex, numeraire);
+		numeraires.put(timeIndex, new RandomVariableDifferentiableAAD(numeraire));
 	}
 	
 	private RandomVariableInterface getUnadjustedNumeraire(int timeIndex) throws CalculationException{
